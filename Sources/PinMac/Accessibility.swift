@@ -1,0 +1,58 @@
+import AppKit
+import ApplicationServices
+
+/// Private but long-stable API (used by Rectangle, AltTab, yabai…) that maps an
+/// Accessibility window element to its window-server ID.
+@_silgen_name("_AXUIElementGetWindow")
+private func _AXUIElementGetWindow(_ element: AXUIElement, _ id: UnsafeMutablePointer<CGWindowID>) -> AXError
+
+enum WindowRaiser {
+    /// Brings a specific window of another app to the front.
+    static func raise(windowID: CGWindowID, pid: pid_t) {
+        let app = AXUIElementCreateApplication(pid)
+
+        var value: CFTypeRef?
+        if AXUIElementCopyAttributeValue(app, kAXWindowsAttribute as CFString, &value) == .success,
+           let windows = value as? [AXUIElement] {
+            for window in windows {
+                var id: CGWindowID = 0
+                if _AXUIElementGetWindow(window, &id) == .success, id == windowID {
+                    AXUIElementSetAttributeValue(window, kAXMainAttribute as CFString, kCFBooleanTrue)
+                    AXUIElementPerformAction(window, kAXRaiseAction as CFString)
+                    break
+                }
+            }
+        }
+
+        // Setting "frontmost" through Accessibility works even though PinMac is
+        // not the active app; NSRunningApplication.activate is the fallback.
+        if AXUIElementSetAttributeValue(app, kAXFrontmostAttribute as CFString, kCFBooleanTrue) != .success {
+            NSRunningApplication(processIdentifier: pid)?.activate()
+        }
+    }
+}
+
+enum Permissions {
+    static var screenRecording: Bool { CGPreflightScreenCaptureAccess() }
+    static var accessibility: Bool { AXIsProcessTrusted() }
+
+    static func requestIfNeeded() {
+        if !screenRecording { CGRequestScreenCaptureAccess() }
+        if !accessibility {
+            let options = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary
+            AXIsProcessTrustedWithOptions(options)
+        }
+    }
+
+    static func openScreenRecordingSettings() {
+        open("x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture")
+    }
+
+    static func openAccessibilitySettings() {
+        open("x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")
+    }
+
+    private static func open(_ url: String) {
+        if let url = URL(string: url) { NSWorkspace.shared.open(url) }
+    }
+}

@@ -1,0 +1,103 @@
+# PinMac 📌
+
+**Keep any window on top — on macOS.** A tiny menu-bar app inspired by the
+*Always On Top* utility in Microsoft PowerToys.
+
+Press **⌃⌘T** (Control + Command + T) to pin the frontmost window. Press it
+again to unpin. Pinned windows get a colored border and stay visible above
+everything else.
+
+## Install
+
+1. Download the latest `PinMac-x.y.z.dmg` from [Releases](../../releases).
+2. Open it and drag **PinMac** into **Applications**.
+3. The app isn't notarized by Apple, so the first time, **right-click PinMac → Open → Open**.
+   (Or run `xattr -dr com.apple.quarantine /Applications/PinMac.app`.)
+4. Grant the two permissions when asked (System Settings → Privacy & Security):
+   - **Screen Recording**: to show a live copy of the pinned window
+   - **Accessibility**: to bring the real window forward when you click it
+
+Requires macOS 14 Sonoma or later (Apple Silicon and Intel).
+
+## Usage
+
+| Action | How |
+| --- | --- |
+| Pin / unpin frontmost window | **⌃⌘T**, or menu bar 📌 → *Pin / Unpin Frontmost Window* |
+| Unpin a specific window | Menu bar 📌 → click it under *Pinned* |
+| Unpin everything | Menu bar 📌 → *Unpin All* |
+| Toggle the border | Menu bar 📌 → *Show Border Around Pinned Windows* |
+| Start automatically | Menu bar 📌 → *Launch at Login* |
+
+## How it works
+
+Unlike Windows, macOS has **no public API that lets one app make another
+app's window float**. Older tools injected code into other apps, which modern
+macOS (with System Integrity Protection) blocks.
+
+PinMac uses a different approach:
+
+1. It captures the pinned window on its own with **ScreenCaptureKit**, which
+   keeps working even when other windows cover it.
+2. When something else is in front, PinMac shows that live capture in a
+   borderless **floating panel** sitting exactly over the real window.
+3. When the real window is already in front, the floating copy hides, so
+   you're working with the real window directly.
+4. Clicking the floating copy brings the real window to the front through
+   the **Accessibility API**.
+
+### Limitations
+
+- While another app is in front, the pinned window is a live *view*: the
+  first click brings the real window forward, and the next clicks go to it.
+- Scrolling or typing into the pinned window requires clicking it first.
+- Pinned windows follow you only on the Space they're on.
+
+## Build from source
+
+You need the Xcode Command Line Tools (`xcode-select --install`) or Xcode.
+
+```bash
+git clone https://github.com/ElleDiablo/PinMac.git
+cd PinMac
+scripts/build.sh 1.0.0      # → build/PinMac.app and build/PinMac-1.0.0.dmg
+open build/PinMac.app
+```
+
+> Local builds are ad-hoc signed, so macOS may ask for permissions again after
+> each rebuild. If pinning stops working, remove PinMac from Screen Recording
+> and Accessibility in System Settings, then add it again.
+
+### Project layout
+
+```
+Sources/PinMac/
+  main.swift            app entry point (menu-bar only)
+  AppDelegate.swift     status-bar menu, hotkey, settings
+  HotKey.swift          global ⌃⌘T shortcut (Carbon)
+  PinManager.swift      tracks pinned windows ~30×/second
+  PinnedWindow.swift    floating mirror panel + border for one window
+  WindowStream.swift    ScreenCaptureKit live capture
+  WindowList.swift      reads the on-screen window list
+  Accessibility.swift   raises windows, permission helpers
+scripts/
+  build.sh              builds the .app and .dmg
+  make-icon.swift       draws the app icon
+```
+
+### Releasing
+
+Push a version tag and GitHub Actions builds the DMG and attaches it to a release:
+
+```bash
+git tag v1.0.0
+git push origin v1.0.0
+```
+
+## Contributing
+
+Issues and pull requests are welcome!
+
+## License
+
+[MIT](LICENSE)
