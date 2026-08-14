@@ -1,119 +1,112 @@
 import AppKit
 
-/// One pinned window: a floating live mirror that covers the real window
-/// whenever something else is in front of it, plus an optional colored border.
+/// One pinned window. PinMac shows a single panel for it, used in one of two ways:
+/// - `.border`: just the colored outline, placed directly above the real window.
+/// - `.mirror`: a live copy of the window (plus outline) that covers it while
+///   unpinned windows are in front of the real one.
 @MainActor
 final class PinnedWindow {
+    enum Mode { case hidden, border, mirror }
+
     static let borderWidth: CGFloat = 3
 
     let info: WindowInfo
     var onClick: (() -> Void)?
 
+    /// Whether a captured frame has arrived, so the panel can act as a mirror.
+    private(set) var hasFrame = false
+    private(set) var mode = Mode.hidden
+
     private var frame: CGRect
-    private let mirror: NSPanel
-    private let mirrorView = MirrorView()
-    private let border: NSPanel
-    private let borderView = BorderView()
+    private let panel: NSPanel
+    private let view = PinView()
     private var stream: WindowStream!
-    private var hasFrame = false
     private var needsCornerRadius = true
 
+    /// The panel's window-server ID, for ordering it relative to other windows.
+    var panelID: CGWindowID { CGWindowID(panel.windowNumber) }
+
     var showsBorder: Bool {
-        didSet { if !showsBorder { border.orderOut(nil) } }
+        get { view.showsBorder }
+        set { view.showsBorder = newValue }
     }
 
-    init(info: WindowInfo, showsBorder: Bool) {
+    init(info: WindowInfo) {
         self.info = info
         self.frame = info.frame
-        self.showsBorder = showsBorder
 
-        mirror = Self.makePanel()
-        mirror.hasShadow = true
-        mirror.contentView = mirrorView
-
-        border = Self.makePanel()
-        border.ignoresMouseEvents = true
-        border.contentView = borderView
+        // A non-activating panel can be clicked without making PinMac the active app.
+        panel = NSPanel(contentRect: .zero, styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
+        panel.isOpaque = false
+        panel.backgroundColor = .clear
+        panel.hidesOnDeactivate = false
+        panel.isReleasedWhenClosed = false
+        panel.collectionBehavior = [.fullScreenAuxiliary, .ignoresCycle]
+        panel.contentView = view
 
         stream = WindowStream(
             onFrame: { [weak self] surface in self?.show(surface) },
             onStop: { [weak self] in self?.hasFrame = false }
         )
-        mirrorView.onMouseDown = { [weak self] in self?.onClick?() }
+        view.onMouseDown = { [weak self] in self?.onClick?() }
+        updatePanelFrame()
     }
 
     func start() async throws {
         try await stream.start(windowID: info.id, size: frame.size, scale: scale)
     }
 
-    /// Called on every tick with the real window's latest position.
-    func update(frame newFrame: CGRect, isFrontmost: Bool) {
+    /// Follows the real window's latest position and size.
+    func setFrame(_ newFrame: CGRect) {
+        guard newFrame != frame else { return }
         if newFrame.size != frame.size {
             stream.resize(to: newFrame.size, scale: scale)
             needsCornerRadius = true
         }
         frame = newFrame
-
-        let appKitFrame = frame.flippedToAppKit
-        if mirror.frame != appKitFrame {
-            mirror.setFrame(appKitFrame, display: false)
-        }
-
-        // When the real window is already on top there's nothing to cover, and
-        // hiding the mirror lets clicks reach the real window directly.
-        if isFrontmost || !hasFrame {
-            mirror.orderOut(nil)
-        } else if !mirror.isVisible {
-            mirror.orderFrontRegardless()
-        }
-
-        if showsBorder {
-            let borderFrame = appKitFrame.insetBy(dx: -Self.borderWidth, dy: -Self.borderWidth)
-            if border.frame != borderFrame { border.setFrame(borderFrame, display: true) }
-            if !border.isVisible { border.orderFrontRegardless() }
-        }
+        updatePanelFrame()
     }
 
-    /// The window is minimized or on another Space.
-    func hide() {
-        mirror.orderOut(nil)
-        border.orderOut(nil)
+    func setMode(_ newMode: Mode) {
+        guard newMode != mode else { return }
+        mode = newMode
+        view.showsMirror = newMode == .mirror
+        // The outline alone shouldn't block clicks on the real window beneath it.
+        panel.ignoresMouseEvents = newMode != .mirror
+        panel.hasShadow = newMode == .mirror
+        if newMode == .hidden { panel.orderOut(nil) }
+    }
+
+    /// Places the panel directly above another window in the stacking order.
+    func order(above windowID: CGWindowID) {
+        panel.order(.above, relativeTo: Int(windowID))
     }
 
     func close() {
         stream.stop()
-        mirror.close()
-        border.close()
+        panel.close()
     }
 
     private func show(_ surface: IOSurface) {
         hasFrame = true
-        mirrorView.show(surface)
+        view.show(surface)
         if needsCornerRadius {
             needsCornerRadius = false
             if let radius = Self.cornerRadius(of: surface, pointWidth: frame.width) {
-                borderView.cornerRadius = radius
+                view.cornerRadius = radius
             }
         }
+    }
+
+    private func updatePanelFrame() {
+        let outer = frame.flippedToAppKit.insetBy(dx: -Self.borderWidth, dy: -Self.borderWidth)
+        if panel.frame != outer { panel.setFrame(outer, display: true) }
     }
 
     private var scale: CGFloat {
         let appKitFrame = frame.flippedToAppKit
         let screen = NSScreen.screens.first { $0.frame.intersects(appKitFrame) } ?? NSScreen.main
         return screen?.backingScaleFactor ?? 2
-    }
-
-    private static func makePanel() -> NSPanel {
-        // A non-activating panel can be clicked without making PinMac the active app.
-        let panel = NSPanel(contentRect: .zero, styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
-        panel.level = .floating
-        panel.isOpaque = false
-        panel.backgroundColor = .clear
-        panel.hasShadow = false
-        panel.hidesOnDeactivate = false
-        panel.isReleasedWhenClosed = false
-        panel.collectionBehavior = [.fullScreenAuxiliary, .ignoresCycle]
-        return panel
     }
 
     /// Measures the window's corner radius from the transparent pixels in the
@@ -144,42 +137,57 @@ final class PinnedWindow {
     }
 }
 
-/// Shows the captured frames. Uses a layer-hosting view so the IOSurface from
-/// ScreenCaptureKit can be handed straight to Core Animation without copying.
-private final class MirrorView: NSView {
+/// Layer-hosting view: the IOSurface from ScreenCaptureKit is handed straight
+/// to Core Animation without copying.
+private final class PinView: NSView {
     var onMouseDown: (() -> Void)?
+
+    private let mirrorLayer = CALayer()
+    private let borderLayer = CALayer()
+
+    var showsMirror = false {
+        didSet { mirrorLayer.isHidden = !showsMirror }
+    }
+
+    var showsBorder = true {
+        didSet { borderLayer.isHidden = !showsBorder }
+    }
+
+    /// The real window's corner radius; the outline sits just outside it.
+    var cornerRadius: CGFloat = 12 {
+        didSet { borderLayer.cornerRadius = cornerRadius + PinnedWindow.borderWidth }
+    }
 
     init() {
         super.init(frame: .zero)
-        layer = CALayer()
-        layer?.contentsGravity = .resize
+        let root = CALayer()
+        root.addSublayer(mirrorLayer)
+        root.addSublayer(borderLayer)
+        layer = root
         wantsLayer = true
+
+        mirrorLayer.contentsGravity = .resize
+        mirrorLayer.isHidden = true
+        borderLayer.borderWidth = PinnedWindow.borderWidth
+        borderLayer.borderColor = NSColor.controlAccentColor.cgColor
+        borderLayer.cornerRadius = cornerRadius + PinnedWindow.borderWidth
     }
 
     required init?(coder: NSCoder) { fatalError() }
 
     func show(_ surface: IOSurface) {
-        layer?.contents = surface
+        mirrorLayer.contents = surface
+    }
+
+    override func layout() {
+        super.layout()
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        borderLayer.frame = bounds
+        mirrorLayer.frame = bounds.insetBy(dx: PinnedWindow.borderWidth, dy: PinnedWindow.borderWidth)
+        CATransaction.commit()
     }
 
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
     override func mouseDown(with event: NSEvent) { onMouseDown?() }
-}
-
-private final class BorderView: NSView {
-    /// The real window's corner radius; the outline sits just outside it.
-    var cornerRadius: CGFloat = 12 {
-        didSet { layer?.cornerRadius = cornerRadius + PinnedWindow.borderWidth }
-    }
-
-    init() {
-        super.init(frame: .zero)
-        layer = CALayer()
-        layer?.borderWidth = PinnedWindow.borderWidth
-        layer?.borderColor = NSColor.controlAccentColor.cgColor
-        layer?.cornerRadius = cornerRadius + PinnedWindow.borderWidth
-        wantsLayer = true
-    }
-
-    required init?(coder: NSCoder) { fatalError() }
 }
