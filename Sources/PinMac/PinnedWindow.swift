@@ -22,6 +22,7 @@ final class PinnedWindow {
     private let view = PinView()
     private var stream: WindowStream!
     private var needsCornerRadius = true
+    private var lastMove = Date.distantPast
 
     /// The panel's window-server ID, for ordering it relative to other windows.
     var panelID: CGWindowID { CGWindowID(panel.windowNumber) }
@@ -61,14 +62,20 @@ final class PinnedWindow {
         try await stream.start(windowID: info.id, size: frame.size, scale: scale)
     }
 
-    /// Follows the real window's latest position and size.
+    /// Follows the real window's latest position and size. The outline can't
+    /// keep up with a window being dragged, so it hides until the window settles.
     func setFrame(_ newFrame: CGRect) {
-        guard newFrame != frame else { return }
+        guard newFrame != frame else {
+            if view.isMoving, Date.now.timeIntervalSince(lastMove) > 0.15 { view.isMoving = false }
+            return
+        }
         if newFrame.size != frame.size {
             stream.resize(to: newFrame.size, scale: scale)
             needsCornerRadius = true
         }
         frame = newFrame
+        lastMove = .now
+        view.isMoving = true
         updatePanelFrame()
     }
 
@@ -155,7 +162,11 @@ private final class PinView: NSView {
     }
 
     var showsBorder = true {
-        didSet { borderLayer.isHidden = !showsBorder }
+        didSet { updateBorderVisibility() }
+    }
+
+    var isMoving = false {
+        didSet { updateBorderVisibility() }
     }
 
     var borderColor = NSColor.controlAccentColor {
@@ -186,6 +197,13 @@ private final class PinView: NSView {
 
     func show(_ surface: IOSurface) {
         mirrorLayer.contents = surface
+    }
+
+    private func updateBorderVisibility() {
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        borderLayer.isHidden = !showsBorder || isMoving
+        CATransaction.commit()
     }
 
     override func layout() {

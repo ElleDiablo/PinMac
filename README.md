@@ -53,6 +53,8 @@ PinMac uses a different approach:
   first click brings the real window forward, and the next clicks go to it.
 - Scrolling or typing into the pinned window requires clicking it first.
 - Pinned windows follow you only on the Space they're on.
+- The border hides while a window is being dragged or resized, and comes
+  back as soon as it stops.
 
 ## Build from source
 
