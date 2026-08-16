@@ -67,8 +67,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
 
         menu.addItem(.separator())
-        let border = item("Show Border Around Pinned Windows", #selector(toggleBorder))
-        border.state = pins.showsBorder ? .on : .off
+        let border = NSMenuItem(title: "Border", action: nil, keyEquivalent: "")
+        border.submenu = borderMenu()
         menu.addItem(border)
         let login = item("Launch at Login", #selector(toggleLaunchAtLogin))
         login.state = SMAppService.mainApp.status == .enabled ? .on : .off
@@ -77,6 +77,54 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         menu.addItem(.separator())
         menu.addItem(item("About PinMac", #selector(showAbout)))
         menu.addItem(item("Quit PinMac", #selector(quit)))
+    }
+
+    private static let presetColors: [(String, NSColor)] = [
+        ("Blue", .systemBlue), ("Purple", .systemPurple), ("Pink", .systemPink), ("Red", .systemRed),
+        ("Orange", .systemOrange), ("Yellow", .systemYellow), ("Green", .systemGreen), ("Gray", .systemGray),
+    ]
+
+    private func borderMenu() -> NSMenu {
+        let menu = NSMenu()
+        let show = item("Show Border", #selector(toggleBorder))
+        show.state = pins.showsBorder ? .on : .off
+        menu.addItem(show)
+        menu.addItem(.separator())
+
+        let accent = item("Accent Color", #selector(chooseBorderColor(_:)))
+        accent.image = swatch(.controlAccentColor)
+        accent.state = pins.borderColor == nil ? .on : .off
+        menu.addItem(accent)
+
+        let current = pins.borderColor?.usingColorSpace(.sRGB)
+        var matchedPreset = false
+        for (name, color) in Self.presetColors {
+            let preset = item(name, #selector(chooseBorderColor(_:)))
+            preset.representedObject = color
+            preset.image = swatch(color)
+            if let current, current == color.usingColorSpace(.sRGB) {
+                preset.state = .on
+                matchedPreset = true
+            }
+            menu.addItem(preset)
+        }
+
+        menu.addItem(.separator())
+        let custom = item("Custom Color…", #selector(showColorPanel))
+        if let current, !matchedPreset {
+            custom.state = .on
+            custom.image = swatch(current)
+        }
+        menu.addItem(custom)
+        return menu
+    }
+
+    private func swatch(_ color: NSColor) -> NSImage {
+        NSImage(size: NSSize(width: 12, height: 12), flipped: false) { rect in
+            color.setFill()
+            NSBezierPath(ovalIn: rect.insetBy(dx: 0.5, dy: 0.5)).fill()
+            return true
+        }
     }
 
     private func item(_ title: String, _ action: Selector) -> NSMenuItem {
@@ -91,6 +139,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     @objc private func openScreenRecording() { Permissions.openScreenRecordingSettings() }
     @objc private func openAccessibility() { Permissions.openAccessibilitySettings() }
     @objc private func quit() { NSApp.terminate(nil) }
+
+    @objc private func chooseBorderColor(_ sender: NSMenuItem) {
+        pins.borderColor = sender.representedObject as? NSColor
+        if !pins.showsBorder { pins.showsBorder = true }
+    }
+
+    @objc private func showColorPanel() {
+        let panel = NSColorPanel.shared
+        panel.showsAlpha = false
+        panel.color = pins.borderColor ?? .controlAccentColor
+        panel.setTarget(self)
+        panel.setAction(#selector(colorPanelChanged(_:)))
+        panel.isContinuous = true
+        NSApp.activate()
+        panel.orderFrontRegardless()
+    }
+
+    @objc private func colorPanelChanged(_ sender: NSColorPanel) {
+        pins.borderColor = sender.color
+        if !pins.showsBorder { pins.showsBorder = true }
+    }
 
     @objc private func unpinWindow(_ sender: NSMenuItem) {
         if let id = sender.representedObject as? CGWindowID { pins.unpin(id) }

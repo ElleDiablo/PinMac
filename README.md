@@ -26,7 +26,8 @@ Requires macOS 14 Sonoma or later (Apple Silicon and Intel).
 | Pin / unpin frontmost window | **⌃⌘T**, or menu bar 📌 → *Pin / Unpin Frontmost Window* |
 | Unpin a specific window | Menu bar 📌 → click it under *Pinned* |
 | Unpin everything | Menu bar 📌 → *Unpin All* |
-| Toggle the border | Menu bar 📌 → *Show Border Around Pinned Windows* |
+| Show / hide the border | Menu bar 📌 → *Border* → *Show Border* |
+| Change the border color | Menu bar 📌 → *Border* → pick a color, or *Custom Color…* |
 | Start automatically | Menu bar 📌 → *Launch at Login* |
 
 ## How it works

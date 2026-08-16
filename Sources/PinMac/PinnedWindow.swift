@@ -31,6 +31,11 @@ final class PinnedWindow {
         set { view.showsBorder = newValue }
     }
 
+    var borderColor: NSColor {
+        get { view.borderColor }
+        set { view.borderColor = newValue }
+    }
+
     init(info: WindowInfo) {
         self.info = info
         self.frame = info.frame
@@ -153,6 +158,10 @@ private final class PinView: NSView {
         didSet { borderLayer.isHidden = !showsBorder }
     }
 
+    var borderColor = NSColor.controlAccentColor {
+        didSet { borderLayer.borderColor = borderColor.cgColor }
+    }
+
     /// The real window's corner radius; the outline sits just outside it.
     var cornerRadius: CGFloat = 12 {
         didSet { borderLayer.cornerRadius = cornerRadius + PinnedWindow.borderWidth }
@@ -169,7 +178,7 @@ private final class PinView: NSView {
         mirrorLayer.contentsGravity = .resize
         mirrorLayer.isHidden = true
         borderLayer.borderWidth = PinnedWindow.borderWidth
-        borderLayer.borderColor = NSColor.controlAccentColor.cgColor
+        borderLayer.borderColor = borderColor.cgColor
         borderLayer.cornerRadius = cornerRadius + PinnedWindow.borderWidth
     }
 

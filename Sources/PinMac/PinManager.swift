@@ -17,6 +17,14 @@ final class PinManager {
         }
     }
 
+    /// nil means "follow the system accent color".
+    var borderColor: NSColor? = PinManager.loadBorderColor() {
+        didSet {
+            PinManager.saveBorderColor(borderColor)
+            pins.values.forEach { $0.borderColor = borderColor ?? .controlAccentColor }
+        }
+    }
+
     var pinnedWindows: [WindowInfo] {
         pins.values.map(\.info).sorted { $0.displayName < $1.displayName }
     }
@@ -39,6 +47,7 @@ final class PinManager {
     func pin(_ window: WindowInfo) {
         let pin = PinnedWindow(info: window)
         pin.showsBorder = showsBorder
+        pin.borderColor = borderColor ?? .controlAccentColor
         pin.onClick = { WindowRaiser.raise(windowID: window.id, pid: window.pid) }
         pins[window.id] = pin
         startTimer()
@@ -134,5 +143,20 @@ final class PinManager {
         for index in desired.indices.dropLast().reversed() {
             panels[desired[index]]?.order(above: desired[index + 1])
         }
+    }
+
+    // MARK: Border color
+
+    private static func loadBorderColor() -> NSColor? {
+        guard let rgb = UserDefaults.standard.array(forKey: "borderColor") as? [Double], rgb.count == 3 else { return nil }
+        return NSColor(srgbRed: rgb[0], green: rgb[1], blue: rgb[2], alpha: 1)
+    }
+
+    private static func saveBorderColor(_ color: NSColor?) {
+        guard let color = color?.usingColorSpace(.sRGB) else {
+            UserDefaults.standard.removeObject(forKey: "borderColor")
+            return
+        }
+        UserDefaults.standard.set([color.redComponent, color.greenComponent, color.blueComponent].map(Double.init), forKey: "borderColor")
     }
 }
