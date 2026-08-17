@@ -23,6 +23,7 @@ final class PinnedWindow {
     private var stream: WindowStream!
     private var needsCornerRadius = true
     private var lastMove = Date.distantPast
+    private var axElement: AXUIElement?
 
     /// The panel's window-server ID, for ordering it relative to other windows.
     var panelID: CGWindowID { CGWindowID(panel.windowNumber) }
@@ -37,6 +38,13 @@ final class PinnedWindow {
         set { view.borderColor = newValue }
     }
 
+    /// Minimized, or its app is hidden: nothing should be shown for it.
+    var isMinimizedOrHidden: Bool {
+        if NSRunningApplication(processIdentifier: info.pid)?.isHidden == true { return true }
+        if axElement == nil { axElement = AXWindows.element(windowID: info.id, pid: info.pid) }
+        return axElement.map(AXWindows.isMinimized) ?? false
+    }
+
     init(info: WindowInfo) {
         self.info = info
         self.frame = info.frame
@@ -47,7 +55,8 @@ final class PinnedWindow {
         panel.backgroundColor = .clear
         panel.hidesOnDeactivate = false
         panel.isReleasedWhenClosed = false
-        panel.collectionBehavior = [.fullScreenAuxiliary, .ignoresCycle]
+        // Follow the user to every Space, including full-screen apps.
+        panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .ignoresCycle]
         panel.contentView = view
 
         stream = WindowStream(
@@ -89,9 +98,17 @@ final class PinnedWindow {
         if newMode == .hidden { panel.orderOut(nil) }
     }
 
-    /// Places the panel directly above another window in the stacking order.
+    /// Places the panel directly above or below another window in the stacking order.
     func order(above windowID: CGWindowID) {
         panel.order(.above, relativeTo: Int(windowID))
+    }
+
+    func order(below windowID: CGWindowID) {
+        panel.order(.below, relativeTo: Int(windowID))
+    }
+
+    func orderFront() {
+        panel.orderFrontRegardless()
     }
 
     func close() {

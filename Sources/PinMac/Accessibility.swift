@@ -6,22 +6,35 @@ import ApplicationServices
 @_silgen_name("_AXUIElementGetWindow")
 private func _AXUIElementGetWindow(_ element: AXUIElement, _ id: UnsafeMutablePointer<CGWindowID>) -> AXError
 
+enum AXWindows {
+    /// Finds the Accessibility element for a window-server window.
+    static func element(windowID: CGWindowID, pid: pid_t) -> AXUIElement? {
+        let app = AXUIElementCreateApplication(pid)
+        var value: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(app, kAXWindowsAttribute as CFString, &value) == .success,
+              let windows = value as? [AXUIElement]
+        else { return nil }
+        return windows.first { window in
+            var id: CGWindowID = 0
+            return _AXUIElementGetWindow(window, &id) == .success && id == windowID
+        }
+    }
+
+    static func isMinimized(_ window: AXUIElement) -> Bool {
+        var value: CFTypeRef?
+        AXUIElementCopyAttributeValue(window, kAXMinimizedAttribute as CFString, &value)
+        return (value as? Bool) ?? false
+    }
+}
+
 enum WindowRaiser {
     /// Brings a specific window of another app to the front.
     static func raise(windowID: CGWindowID, pid: pid_t) {
         let app = AXUIElementCreateApplication(pid)
 
-        var value: CFTypeRef?
-        if AXUIElementCopyAttributeValue(app, kAXWindowsAttribute as CFString, &value) == .success,
-           let windows = value as? [AXUIElement] {
-            for window in windows {
-                var id: CGWindowID = 0
-                if _AXUIElementGetWindow(window, &id) == .success, id == windowID {
-                    AXUIElementSetAttributeValue(window, kAXMainAttribute as CFString, kCFBooleanTrue)
-                    AXUIElementPerformAction(window, kAXRaiseAction as CFString)
-                    break
-                }
-            }
+        if let window = AXWindows.element(windowID: windowID, pid: pid) {
+            AXUIElementSetAttributeValue(window, kAXMainAttribute as CFString, kCFBooleanTrue)
+            AXUIElementPerformAction(window, kAXRaiseAction as CFString)
         }
 
         // Setting "frontmost" through Accessibility works even though PinMac is

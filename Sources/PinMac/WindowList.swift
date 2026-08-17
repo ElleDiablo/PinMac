@@ -22,10 +22,11 @@ enum WindowList {
         return list.compactMap(WindowInfo.init).filter { $0.pid != ownPID }
     }
 
-    /// Whether the window still exists at all (it may be minimized or on another Space).
-    static func exists(_ id: CGWindowID) -> Bool {
+    /// Looks up a window even when it's not on screen (minimized or on another
+    /// Space). Returns nil once the window has closed.
+    static func info(for id: CGWindowID) -> WindowInfo? {
         let list = CGWindowListCopyWindowInfo(.optionIncludingWindow, id) as? [[String: Any]]
-        return !(list ?? []).isEmpty
+        return list?.first.flatMap(WindowInfo.init)
     }
 }
 

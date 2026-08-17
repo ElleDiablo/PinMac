@@ -94,15 +94,24 @@ final class PinManager {
     /// Follows each pinned window and arranges PinMac's panels in the stacking
     /// order so pinned windows keep their order among themselves, above all others.
     private func tick() {
-        let allWindows = WindowList.onScreen() // front to back, including PinMac's panels
+        let allWindows = WindowList.onScreen() // current Space, front to back, including PinMac's panels
         let ownPID = ProcessInfo.processInfo.processIdentifier
         let windows = allWindows.filter { $0.pid != ownPID }
 
-        for (id, pin) in pins where !windows.contains(where: { $0.id == id }) {
-            if WindowList.exists(id) {
-                pin.setMode(.hidden) // minimized or on another Space
-            } else {
+        // Pinned windows that aren't on this Space (e.g. the user switched to a
+        // full-screen app) are shown as a mirror here, unless minimized or hidden.
+        var elsewhere: [PinnedWindow] = []
+        for (id, pin) in pins.sorted(by: { $0.key < $1.key }) where !windows.contains(where: { $0.id == id }) {
+            guard let info = WindowList.info(for: id) else {
                 unpin(id) // closed, or its app quit
+                continue
+            }
+            if pin.hasFrame && !pin.isMinimizedOrHidden {
+                pin.setFrame(info.frame)
+                pin.setMode(.mirror)
+                elsewhere.append(pin)
+            } else {
+                pin.setMode(.hidden)
             }
         }
 
@@ -115,33 +124,39 @@ final class PinManager {
         // The desired order, front to back, of the top of the stack.
         var desired: [CGWindowID] = []
         var panels: [CGWindowID: PinnedWindow] = [:]
+        func add(_ pin: PinnedWindow) {
+            desired.append(pin.panelID)
+            panels[pin.panelID] = pin
+        }
 
-        for (index, window) in windows.enumerated() {
+        for window in windows.prefix(topCount) {
             guard let pin = pins[window.id] else { continue }
             pin.setFrame(window.frame)
-            let isOnTop = index < topCount
-
-            if isOnTop && showsBorder {
-                pin.setMode(.border)
-            } else if !isOnTop && pin.hasFrame {
-                pin.setMode(.mirror)
-            } else {
-                pin.setMode(.hidden)
-            }
-
-            if pin.mode != .hidden {
-                desired.append(pin.panelID)
-                panels[pin.panelID] = pin
-            }
-            if isOnTop { desired.append(window.id) }
+            pin.setMode(showsBorder ? .border : .hidden)
+            if pin.mode != .hidden { add(pin) }
+            desired.append(window.id)
+        }
+        elsewhere.forEach(add)
+        for window in windows.dropFirst(topCount) {
+            guard let pin = pins[window.id] else { continue }
+            pin.setFrame(window.frame)
+            pin.setMode(pin.hasFrame ? .mirror : .hidden)
+            if pin.mode != .hidden { add(pin) }
         }
         if let anchor { desired.append(anchor.id) }
 
         // Only reorder when something is out of place, working from the bottom up.
         let actual = allWindows.prefix(desired.count).map(\.id)
         guard actual != desired else { return }
-        for index in desired.indices.dropLast().reversed() {
-            panels[desired[index]]?.order(above: desired[index + 1])
+        for index in desired.indices.reversed() {
+            guard let pin = panels[desired[index]] else { continue }
+            if index + 1 < desired.count {
+                pin.order(above: desired[index + 1])
+            } else if let window = desired[..<index].last(where: { panels[$0] == nil }) {
+                pin.order(below: window)
+            } else {
+                pin.orderFront() // nothing else on this Space
+            }
         }
     }
 

@@ -46,13 +46,16 @@ PinMac uses a different approach:
    you're working with the real window directly.
 4. Clicking the floating copy brings the real window to the front through
    the **Accessibility API**.
+5. Pinned windows follow you to every Space, including full-screen apps,
+   where they appear as the live copy.
 
 ### Limitations
 
 - While another app is in front, the pinned window is a live *view*: the
   first click brings the real window forward, and the next clicks go to it.
 - Scrolling or typing into the pinned window requires clicking it first.
-- Pinned windows follow you only on the Space they're on.
+- On another Space or over a full-screen app, clicking a pinned window
+  switches back to the Space it lives on.
 - The border hides while a window is being dragged or resized, and comes
   back as soon as it stops.
 
