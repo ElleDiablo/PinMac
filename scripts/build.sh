@@ -33,8 +33,11 @@ if [ ! -f Resources/AppIcon.icns ]; then
 fi
 cp Resources/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
 
-echo "▸ Signing (ad-hoc)"
-codesign --force --deep --sign - "$APP"
+# Set SIGN_IDENTITY (e.g. "Apple Development: you@example.com") to sign with a
+# real certificate; macOS then keeps PinMac's permissions across rebuilds.
+IDENTITY="${SIGN_IDENTITY:--}"
+echo "▸ Signing (${SIGN_IDENTITY:-ad-hoc})"
+codesign --force --deep --sign "$IDENTITY" "$APP"
 
 echo "▸ Creating $DMG"
 STAGING="$BUILD/dmg"

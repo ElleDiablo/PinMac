@@ -1,12 +1,24 @@
 import AppKit
 import Carbon.HIToolbox
 import ServiceManagement
+import SwiftUI
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var statusItem: NSStatusItem!
     private let pins = PinManager()
     private var hotKey: HotKey?
+    private let colorModel = BorderColorModel()
+
+    /// Drops down from the menu-bar icon, so it's always easy to find.
+    private lazy var colorPopover: NSPopover = {
+        let popover = NSPopover()
+        popover.behavior = .transient
+        let hosting = NSHostingController(rootView: BorderColorView(model: colorModel))
+        hosting.sizingOptions = .preferredContentSize
+        popover.contentViewController = hosting
+        return popover
+    }()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
@@ -22,6 +34,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
         pins.onChange = { [weak self] in self?.updateIcon() }
         pins.onError = { [weak self] error in self?.showError(error) }
+        colorModel.onChange = { [weak self] color in
+            guard let self else { return }
+            pins.borderColor = color
+            if !pins.showsBorder { pins.showsBorder = true }
+        }
 
         Permissions.requestIfNeeded()
     }
@@ -110,7 +127,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
 
         menu.addItem(.separator())
-        let custom = item("Custom Color…", #selector(showColorPanel))
+        let custom = item("Custom Color…", #selector(showColorPopover))
         if let current, !matchedPreset {
             custom.state = .on
             custom.image = swatch(current)
@@ -145,20 +162,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         if !pins.showsBorder { pins.showsBorder = true }
     }
 
-    @objc private func showColorPanel() {
-        let panel = NSColorPanel.shared
-        panel.showsAlpha = false
-        panel.color = pins.borderColor ?? .controlAccentColor
-        panel.setTarget(self)
-        panel.setAction(#selector(colorPanelChanged(_:)))
-        panel.isContinuous = true
+    @objc private func showColorPopover() {
+        guard let button = statusItem.button else { return }
+        colorModel.load(pins.borderColor ?? .controlAccentColor)
+        // Activate so the hex field can take typing, and wait for the menu to finish closing.
         NSApp.activate()
-        panel.orderFrontRegardless()
-    }
-
-    @objc private func colorPanelChanged(_ sender: NSColorPanel) {
-        pins.borderColor = sender.color
-        if !pins.showsBorder { pins.showsBorder = true }
+        DispatchQueue.main.async { [self] in
+            colorPopover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
+        }
     }
 
     @objc private func unpinWindow(_ sender: NSMenuItem) {

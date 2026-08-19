@@ -32,6 +32,7 @@ final class PinManager {
     /// Pins the frontmost window of the active app, or unpins it if it's already pinned.
     func toggleFrontmost() {
         guard let app = NSWorkspace.shared.frontmostApplication,
+              app.processIdentifier != ProcessInfo.processInfo.processIdentifier,
               let window = WindowList.onScreen().first(where: { $0.pid == app.processIdentifier })
         else {
             NSSound.beep()

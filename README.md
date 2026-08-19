@@ -70,9 +70,10 @@ scripts/build.sh 1.0.0      # → build/PinMac.app and build/PinMac-1.0.0.dmg
 open build/PinMac.app
 ```
 
-> Local builds are ad-hoc signed, so macOS may ask for permissions again after
-> each rebuild. If pinning stops working, remove PinMac from Screen Recording
-> and Accessibility in System Settings, then add it again.
+> Local builds are ad-hoc signed by default, so macOS may ask for permissions
+> again after each rebuild. To avoid that, sign with your own certificate:
+> `SIGN_IDENTITY="Apple Development: you@example.com" scripts/build.sh`
+> (list yours with `security find-identity -v -p codesigning`).
 
 ### Project layout
 
