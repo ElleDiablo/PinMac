@@ -35,13 +35,13 @@ final class BorderColorModel: ObservableObject {
         onChange?(self.color)
     }
 
-    func setWheel(hue: Double, saturation: Double) {
+    func setHue(_ hue: Double) {
         self.hue = hue
-        self.saturation = saturation
         changed()
     }
 
-    func setBrightness(_ brightness: Double) {
+    func setSaturationBrightness(saturation: Double, brightness: Double) {
+        self.saturation = saturation
         self.brightness = brightness
         changed()
     }
@@ -85,23 +85,21 @@ struct BorderColorView: View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Border Color").font(.headline)
 
-            ColorWheel(model: model)
-                .frame(width: 180, height: 180)
-                .frame(maxWidth: .infinity)
+            SaturationBrightnessBox(model: model)
+                .frame(height: 150)
 
-            HStack(spacing: 6) {
-                Image(systemName: "sun.min").foregroundStyle(.secondary)
-                Slider(value: Binding(get: { model.brightness }, set: model.setBrightness), in: 0...1)
-                Image(systemName: "sun.max").foregroundStyle(.secondary)
+            HStack(spacing: 12) {
+                Circle()
+                    .fill(Color(nsColor: model.color))
+                    .overlay(Circle().strokeBorder(.primary.opacity(0.15)))
+                    .shadow(color: .black.opacity(0.25), radius: 2, y: 1)
+                    .frame(width: 40, height: 40)
+                    .onDrag { model.color.itemProvider }
+                    .help("Drag this color into Saved Colors")
+                HueSlider(model: model)
             }
 
             HStack(spacing: 8) {
-                RoundedRectangle(cornerRadius: 6)
-                    .fill(Color(nsColor: model.color))
-                    .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(.primary.opacity(0.2)))
-                    .frame(width: 34, height: 24)
-                    .onDrag { model.color.itemProvider }
-                    .help("Drag this color into Saved Colors")
                 TextField("#RRGGBB", text: Binding(get: { model.hexText }, set: model.setHexText))
                     .textFieldStyle(.roundedBorder)
                     .font(.system(.body, design: .monospaced))
@@ -190,38 +188,73 @@ struct BorderColorView: View {
     }
 }
 
-/// Hue around the circle, saturation from the center out.
-private struct ColorWheel: View {
+/// Saturation left to right, brightness top to bottom, for the current hue.
+private struct SaturationBrightnessBox: View {
     @ObservedObject var model: BorderColorModel
 
     var body: some View {
         GeometryReader { geometry in
-            let radius = min(geometry.size.width, geometry.size.height) / 2
-            let angle = model.hue * 2 * .pi
+            let size = geometry.size
             ZStack {
-                Circle().fill(AngularGradient(
-                    colors: stride(from: 0, through: 1, by: 1.0 / 12).map { Color(hue: $0, saturation: 1, brightness: 1) },
-                    center: .center))
-                Circle().fill(RadialGradient(colors: [.white, .white.opacity(0)], center: .center,
-                                             startRadius: 0, endRadius: radius))
-                Circle().fill(Color.black.opacity(1 - model.brightness))
-                Circle()
-                    .strokeBorder(.white, lineWidth: 2.5)
-                    .shadow(color: .black.opacity(0.4), radius: 1.5)
-                    .frame(width: 16, height: 16)
-                    .position(x: radius + cos(angle) * model.saturation * radius,
-                              y: radius + sin(angle) * model.saturation * radius)
+                ZStack {
+                    Color(hue: model.hue, saturation: 1, brightness: 1)
+                    LinearGradient(colors: [.white, .white.opacity(0)], startPoint: .leading, endPoint: .trailing)
+                    LinearGradient(colors: [.black.opacity(0), .black], startPoint: .top, endPoint: .bottom)
+                }
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+
+                Knob(color: Color(nsColor: model.color))
+                    .position(x: model.saturation * size.width, y: (1 - model.brightness) * size.height)
             }
-            .contentShape(Circle())
+            .contentShape(Rectangle())
             .gesture(DragGesture(minimumDistance: 0).onChanged { drag in
-                let dx = drag.location.x - radius
-                let dy = drag.location.y - radius
-                var hue = atan2(dy, dx) / (2 * .pi)
-                if hue < 0 { hue += 1 }
-                model.setWheel(hue: hue, saturation: min(1, (dx * dx + dy * dy).squareRoot() / radius))
+                model.setSaturationBrightness(
+                    saturation: (drag.location.x / size.width).clamped,
+                    brightness: (1 - drag.location.y / size.height).clamped)
             })
         }
     }
+}
+
+private struct HueSlider: View {
+    @ObservedObject var model: BorderColorModel
+    private let knobSize: CGFloat = 20
+
+    var body: some View {
+        GeometryReader { geometry in
+            let track = geometry.size.width - knobSize
+            ZStack {
+                Capsule()
+                    .fill(LinearGradient(
+                        colors: stride(from: 0, through: 1, by: 1.0 / 12).map { Color(hue: $0, saturation: 1, brightness: 1) },
+                        startPoint: .leading, endPoint: .trailing))
+                    .frame(height: 12)
+                Knob(color: Color(hue: model.hue, saturation: 1, brightness: 1))
+                    .position(x: knobSize / 2 + model.hue * track, y: geometry.size.height / 2)
+            }
+            .contentShape(Rectangle())
+            .gesture(DragGesture(minimumDistance: 0).onChanged { drag in
+                model.setHue(((drag.location.x - knobSize / 2) / track).clamped)
+            })
+        }
+        .frame(height: knobSize)
+    }
+}
+
+private struct Knob: View {
+    let color: Color
+
+    var body: some View {
+        Circle()
+            .fill(color)
+            .overlay(Circle().strokeBorder(.white, lineWidth: 3))
+            .shadow(color: .black.opacity(0.35), radius: 2, y: 1)
+            .frame(width: 20, height: 20)
+    }
+}
+
+private extension CGFloat {
+    var clamped: CGFloat { Swift.min(Swift.max(self, 0), 1) }
 }
 
 extension UTType {
