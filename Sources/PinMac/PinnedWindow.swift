@@ -25,6 +25,11 @@ final class PinnedWindow {
     private var lastMove = Date.distantPast
     private var axElement: AXUIElement?
 
+    private enum Capture { case idle, starting, running }
+    private var capture = Capture.idle
+    private var lastCaptureNeeded = Date.now
+    private var lastCaptureFailure = Date.distantPast
+
     /// The panel's window-server ID, for ordering it relative to other windows.
     var panelID: CGWindowID { CGWindowID(panel.windowNumber) }
 
@@ -61,14 +66,46 @@ final class PinnedWindow {
 
         stream = WindowStream(
             onFrame: { [weak self] surface in self?.show(surface) },
-            onStop: { [weak self] in self?.hasFrame = false }
+            onStop: { [weak self] in self?.capture = .idle }
         )
         view.onMouseDown = { [weak self] in self?.onClick?() }
         updatePanelFrame()
     }
 
+    /// The first capture, which also measures the window's corner radius.
     func start() async throws {
-        try await stream.start(windowID: info.id, size: frame.size, scale: scale)
+        capture = .starting
+        do {
+            try await stream.start(windowID: info.id, size: frame.size, scale: scale)
+            capture = .running
+        } catch {
+            capture = .idle
+            throw error
+        }
+    }
+
+    /// Screen capture turns on macOS's purple recording indicator, so PinMac only
+    /// captures while the window is covered. The last frame is kept, so the
+    /// mirror can appear instantly and turn live a moment later.
+    func setCaptureNeeded(_ needed: Bool) {
+        if needed {
+            lastCaptureNeeded = .now
+            guard capture == .idle, Date.now.timeIntervalSince(lastCaptureFailure) > 2 else { return }
+            capture = .starting
+            Task {
+                do {
+                    try await stream.start(windowID: info.id, size: frame.size, scale: scale)
+                    capture = .running
+                } catch {
+                    capture = .idle
+                    lastCaptureFailure = .now
+                }
+            }
+        } else if capture == .running, !needsCornerRadius, Date.now.timeIntervalSince(lastCaptureNeeded) > 1 {
+            // The short grace period avoids restarting when clicking back and forth.
+            stream.stop()
+            capture = .idle
+        }
     }
 
     /// Follows the real window's latest position and size. The outline can't

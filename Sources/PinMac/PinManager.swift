@@ -107,7 +107,9 @@ final class PinManager {
                 unpin(id) // closed, or its app quit
                 continue
             }
-            if pin.hasFrame && !pin.isMinimizedOrHidden {
+            let isVisible = !pin.isMinimizedOrHidden
+            pin.setCaptureNeeded(isVisible)
+            if isVisible && pin.hasFrame {
                 pin.setFrame(info.frame)
                 pin.setMode(.mirror)
                 elsewhere.append(pin)
@@ -133,6 +135,7 @@ final class PinManager {
         for window in windows.prefix(topCount) {
             guard let pin = pins[window.id] else { continue }
             pin.setFrame(window.frame)
+            pin.setCaptureNeeded(false)
             pin.setMode(showsBorder ? .border : .hidden)
             if pin.mode != .hidden { add(pin) }
             desired.append(window.id)
@@ -141,6 +144,7 @@ final class PinManager {
         for window in windows.dropFirst(topCount) {
             guard let pin = pins[window.id] else { continue }
             pin.setFrame(window.frame)
+            pin.setCaptureNeeded(true)
             pin.setMode(pin.hasFrame ? .mirror : .hidden)
             if pin.mode != .hidden { add(pin) }
         }

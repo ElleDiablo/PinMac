@@ -58,6 +58,9 @@ PinMac uses a different approach:
   switches back to the Space it lives on.
 - The border hides while a window is being dragged or resized, and comes
   back as soon as it stops.
+- macOS shows its purple screen-recording indicator in the menu bar while
+  PinMac is capturing. PinMac only captures while a pinned window is covered,
+  so the indicator goes away when your pinned windows are in front.
 
 ## Build from source
 
