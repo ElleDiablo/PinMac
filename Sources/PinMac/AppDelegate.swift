@@ -87,6 +87,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let border = NSMenuItem(title: "Border", action: nil, keyEquivalent: "")
         border.submenu = borderMenu()
         menu.addItem(border)
+        let sounds = item("Play Sounds", #selector(toggleSounds))
+        sounds.state = pins.playsSounds ? .on : .off
+        menu.addItem(sounds)
         let login = item("Launch at Login", #selector(toggleLaunchAtLogin))
         login.state = SMAppService.mainApp.status == .enabled ? .on : .off
         menu.addItem(login)
@@ -153,6 +156,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     @objc private func toggleFrontmost() { pins.toggleFrontmost() }
     @objc private func unpinAll() { pins.unpinAll() }
     @objc private func toggleBorder() { pins.showsBorder.toggle() }
+    @objc private func toggleSounds() { pins.playsSounds.toggle() }
     @objc private func openScreenRecording() { Permissions.openScreenRecordingSettings() }
     @objc private func openAccessibility() { Permissions.openAccessibilitySettings() }
     @objc private func quit() { NSApp.terminate(nil) }

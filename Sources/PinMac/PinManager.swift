@@ -17,6 +17,10 @@ final class PinManager {
         }
     }
 
+    var playsSounds = UserDefaults.standard.object(forKey: "playsSounds") as? Bool ?? true {
+        didSet { UserDefaults.standard.set(playsSounds, forKey: "playsSounds") }
+    }
+
     /// nil means "follow the system accent color".
     var borderColor: NSColor? = PinManager.loadBorderColor() {
         didSet {
@@ -53,25 +57,41 @@ final class PinManager {
         pins[window.id] = pin
         startTimer()
         onChange?()
+        play("Pop")
 
         Task {
             do {
                 try await pin.start()
             } catch {
-                unpin(window.id)
+                remove(window.id)
                 onError?(error)
             }
         }
     }
 
     func unpin(_ id: CGWindowID) {
+        guard pins[id] != nil else { return }
+        remove(id)
+        play("Tink")
+    }
+
+    func unpinAll() {
+        guard !pins.isEmpty else { return }
+        pins.keys.forEach(remove)
+        play("Tink")
+    }
+
+    /// Unpins without feedback, e.g. when the window closed on its own.
+    private func remove(_ id: CGWindowID) {
         pins.removeValue(forKey: id)?.close()
         if pins.isEmpty { stopTimer() }
         onChange?()
     }
 
-    func unpinAll() {
-        pins.keys.forEach(unpin)
+    /// Audible confirmation, like PowerToys' pin sound.
+    private func play(_ sound: String) {
+        guard playsSounds else { return }
+        NSSound(named: sound)?.play()
     }
 
     // MARK: Tracking
@@ -104,7 +124,7 @@ final class PinManager {
         var elsewhere: [PinnedWindow] = []
         for (id, pin) in pins.sorted(by: { $0.key < $1.key }) where !windows.contains(where: { $0.id == id }) {
             guard let info = WindowList.info(for: id) else {
-                unpin(id) // closed, or its app quit
+                remove(id) // closed, or its app quit
                 continue
             }
             let isVisible = !pin.isMinimizedOrHidden

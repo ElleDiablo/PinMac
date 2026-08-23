@@ -28,6 +28,7 @@ Requires macOS 14 Sonoma or later (Apple Silicon and Intel).
 | Unpin everything | Menu bar 📌 → *Unpin All* |
 | Show / hide the border | Menu bar 📌 → *Border* → *Show Border* |
 | Change the border color | Menu bar 📌 → *Border* → pick a color, or *Custom Color…* |
+| Turn the pin / unpin sounds on or off | Menu bar 📌 → *Play Sounds* |
 | Start automatically | Menu bar 📌 → *Launch at Login* |
 
 ## How it works
