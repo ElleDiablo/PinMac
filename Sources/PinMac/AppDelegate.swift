@@ -4,21 +4,14 @@ import ServiceManagement
 import SwiftUI
 
 @MainActor
-final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
+final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSPopoverDelegate {
     private var statusItem: NSStatusItem!
     private let pins = PinManager()
     private var hotKey: HotKey?
     private let colorModel = BorderColorModel()
-
-    /// Drops down from the menu-bar icon, so it's always easy to find.
-    private lazy var colorPopover: NSPopover = {
-        let popover = NSPopover()
-        popover.behavior = .transient
-        let hosting = NSHostingController(rootView: BorderColorView(model: colorModel))
-        hosting.sizingOptions = .preferredContentSize
-        popover.contentViewController = hosting
-        return popover
-    }()
+    private let shortcutModel = ShortcutModel()
+    private lazy var colorPopover = makePopover(BorderColorView(model: colorModel))
+    private lazy var shortcutPopover = makePopover(ShortcutView(model: shortcutModel))
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
@@ -27,9 +20,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         statusItem.menu = menu
         updateIcon()
 
-        // ⌃⌘T — the Mac counterpart of PowerToys' Win+Ctrl+T.
-        hotKey = HotKey(keyCode: kVK_ANSI_T, modifiers: controlKey | cmdKey) { [weak self] in
-            self?.pins.toggleFrontmost()
+        // Defaults to ⌃⌘T, the Mac counterpart of PowerToys' Win+Ctrl+T.
+        shortcutModel.register = { [weak self] shortcut in self?.registerHotKey(shortcut) ?? false }
+        shortcutModel.pause = { [weak self] in self?.hotKey = nil }
+        if !registerHotKey(shortcutModel.shortcut) {
+            showError(ShortcutError.unavailable(shortcutModel.shortcut))
         }
 
         pins.onChange = { [weak self] in self?.updateIcon() }
@@ -41,6 +36,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
 
         Permissions.requestIfNeeded()
+    }
+
+    @discardableResult
+    private func registerHotKey(_ shortcut: Shortcut) -> Bool {
+        hotKey = nil // release the old shortcut first
+        hotKey = HotKey(shortcut) { [weak self] in self?.pins.toggleFrontmost() }
+        return hotKey != nil
     }
 
     private func updateIcon() {
@@ -55,10 +57,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     func menuNeedsUpdate(_ menu: NSMenu) {
         menu.removeAllItems()
 
-        let toggle = item("Pin / Unpin Frontmost Window", #selector(toggleFrontmost))
-        toggle.keyEquivalent = "t"
-        toggle.keyEquivalentModifierMask = [.control, .command]
+        let shortcut = shortcutModel.shortcut
+        let toggleTitle = "Pin / Unpin Frontmost Window"
+        let toggle = item(shortcut.menuKeyEquivalent.isEmpty ? "\(toggleTitle)  \(shortcut.displayString)" : toggleTitle,
+                          #selector(toggleFrontmost))
+        toggle.keyEquivalent = shortcut.menuKeyEquivalent
+        toggle.keyEquivalentModifierMask = shortcut.menuModifiers
         menu.addItem(toggle)
+        menu.addItem(item("Change Shortcut…", #selector(showShortcutPopover)))
 
         let pinned = pins.pinnedWindows
         if !pinned.isEmpty {
@@ -167,13 +173,38 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     @objc private func showColorPopover() {
-        guard let button = statusItem.button else { return }
         colorModel.load(pins.borderColor ?? .controlAccentColor)
-        // Activate so the hex field can take typing, and wait for the menu to finish closing.
+        show(colorPopover)
+    }
+
+    @objc private func showShortcutPopover() {
+        show(shortcutPopover)
+    }
+
+    // MARK: Popovers
+
+    /// Popovers drop down from the menu-bar icon, so they're always easy to find.
+    private func makePopover(_ view: some View) -> NSPopover {
+        let popover = NSPopover()
+        popover.behavior = .transient
+        popover.delegate = self
+        let hosting = NSHostingController(rootView: view)
+        hosting.sizingOptions = .preferredContentSize
+        popover.contentViewController = hosting
+        return popover
+    }
+
+    private func show(_ popover: NSPopover) {
+        guard let button = statusItem.button else { return }
+        // Activate so the popover can take typing, and wait for the menu to finish closing.
         NSApp.activate()
-        DispatchQueue.main.async { [self] in
-            colorPopover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
+        DispatchQueue.main.async {
+            popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
         }
+    }
+
+    func popoverDidClose(_ notification: Notification) {
+        shortcutModel.stopRecording()
     }
 
     @objc private func unpinWindow(_ sender: NSMenuItem) {
@@ -195,7 +226,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     @objc private func showAbout() {
         NSApp.activate()
         NSApp.orderFrontStandardAboutPanel(options: [
-            .credits: NSAttributedString(string: "Keep any window on top.\nPress ⌃⌘T to pin or unpin the frontmost window."),
+            .credits: NSAttributedString(string: "Keep any window on top.\nPress \(shortcutModel.shortcut.displayString) to pin or unpin the frontmost window."),
         ])
     }
 
@@ -203,5 +234,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         NSApp.activate()
         let alert = NSAlert(error: error)
         alert.runModal()
+    }
+}
+
+enum ShortcutError: LocalizedError {
+    case unavailable(Shortcut)
+
+    var errorDescription: String? {
+        switch self {
+        case .unavailable(let shortcut):
+            "\(shortcut.displayString) is already used by another app. Choose a different shortcut from the PinMac menu."
+        }
     }
 }

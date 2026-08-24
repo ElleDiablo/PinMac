@@ -4,7 +4,7 @@
 *Always On Top* utility in Microsoft PowerToys.
 
 Press **⌃⌘T** (Control + Command + T) to pin the frontmost window. Press it
-again to unpin. Pinned windows get a colored border and stay visible above
+again to unpin. You can change the shortcut from the menu bar. Pinned windows get a colored border and stay visible above
 everything else.
 
 ## Install
@@ -24,6 +24,7 @@ Requires macOS 14 Sonoma or later (Apple Silicon and Intel).
 | Action | How |
 | --- | --- |
 | Pin / unpin frontmost window | **⌃⌘T**, or menu bar 📌 → *Pin / Unpin Frontmost Window* |
+| Change the shortcut | Menu bar 📌 → *Change Shortcut…*, click the box, press new keys |
 | Unpin a specific window | Menu bar 📌 → click it under *Pinned* |
 | Unpin everything | Menu bar 📌 → *Unpin All* |
 | Show / hide the border | Menu bar 📌 → *Border* → *Show Border* |
@@ -85,7 +86,9 @@ open build/PinMac.app
 Sources/PinMac/
   main.swift            app entry point (menu-bar only)
   AppDelegate.swift     status-bar menu, hotkey, settings
-  HotKey.swift          global ⌃⌘T shortcut (Carbon)
+  HotKey.swift          global shortcut registration (Carbon)
+  Shortcut.swift        shortcut model, storage, and recorder popover
+  BorderColorPicker.swift  border color popover
   PinManager.swift      tracks pinned windows ~30×/second
   PinnedWindow.swift    floating mirror panel + border for one window
   WindowStream.swift    ScreenCaptureKit live capture

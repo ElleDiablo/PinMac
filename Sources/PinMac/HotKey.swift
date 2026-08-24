@@ -7,7 +7,8 @@ final class HotKey {
     private var handlerRef: EventHandlerRef?
     private let action: @MainActor () -> Void
 
-    init(keyCode: Int, modifiers: Int, action: @escaping @MainActor () -> Void) {
+    /// Returns nil if the shortcut can't be registered (e.g. another app owns it).
+    init?(_ shortcut: Shortcut, action: @escaping @MainActor () -> Void) {
         self.action = action
 
         var eventType = EventTypeSpec(eventClass: OSType(kEventClassKeyboard), eventKind: UInt32(kEventHotKeyPressed))
@@ -20,7 +21,9 @@ final class HotKey {
         }, 1, &eventType, userData, &handlerRef)
 
         let id = EventHotKeyID(signature: OSType(0x504E_4D43), id: 1) // "PNMC"
-        RegisterEventHotKey(UInt32(keyCode), UInt32(modifiers), id, GetApplicationEventTarget(), 0, &hotKeyRef)
+        let status = RegisterEventHotKey(UInt32(shortcut.keyCode), UInt32(shortcut.modifiers), id,
+                                         GetApplicationEventTarget(), 0, &hotKeyRef)
+        if status != noErr { return nil }
     }
 
     deinit {
