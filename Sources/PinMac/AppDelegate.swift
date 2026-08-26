@@ -10,6 +10,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSPopo
     private var hotKey: HotKey?
     private let colorModel = BorderColorModel()
     private let shortcutModel = ShortcutModel()
+    private let welcome = WelcomeWindowController()
     private lazy var colorPopover = makePopover(BorderColorView(model: colorModel))
     private lazy var shortcutPopover = makePopover(ShortcutView(model: shortcutModel))
 
@@ -35,7 +36,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSPopo
             if !pins.showsBorder { pins.showsBorder = true }
         }
 
-        Permissions.requestIfNeeded()
+        if WelcomeWindowController.shouldShowAtLaunch { showWelcome() }
     }
 
     @discardableResult
@@ -81,12 +82,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSPopo
 
         if !Permissions.screenRecording || !Permissions.accessibility {
             menu.addItem(.separator())
-            if !Permissions.screenRecording {
-                menu.addItem(item("⚠︎ Allow Screen Recording…", #selector(openScreenRecording)))
-            }
-            if !Permissions.accessibility {
-                menu.addItem(item("⚠︎ Allow Accessibility…", #selector(openAccessibility)))
-            }
+            menu.addItem(item("⚠︎ Finish Setup…", #selector(showWelcome)))
         }
 
         menu.addItem(.separator())
@@ -101,6 +97,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSPopo
         menu.addItem(login)
 
         menu.addItem(.separator())
+        menu.addItem(item("Welcome Guide…", #selector(showWelcome)))
         menu.addItem(item("About PinMac", #selector(showAbout)))
         menu.addItem(item("Quit PinMac", #selector(quit)))
     }
@@ -163,8 +160,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSPopo
     @objc private func unpinAll() { pins.unpinAll() }
     @objc private func toggleBorder() { pins.showsBorder.toggle() }
     @objc private func toggleSounds() { pins.playsSounds.toggle() }
-    @objc private func openScreenRecording() { Permissions.openScreenRecordingSettings() }
-    @objc private func openAccessibility() { Permissions.openAccessibilitySettings() }
+    @objc private func showWelcome() { welcome.show(shortcut: shortcutModel.shortcut) }
     @objc private func quit() { NSApp.terminate(nil) }
 
     @objc private func chooseBorderColor(_ sender: NSMenuItem) {

@@ -49,12 +49,10 @@ enum Permissions {
     static var screenRecording: Bool { CGPreflightScreenCaptureAccess() }
     static var accessibility: Bool { AXIsProcessTrusted() }
 
-    static func requestIfNeeded() {
-        if !screenRecording { CGRequestScreenCaptureAccess() }
-        if !accessibility {
-            let options = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary
-            AXIsProcessTrustedWithOptions(options)
-        }
+    /// Shows macOS's prompt that leads to the Accessibility settings.
+    static func requestAccessibility() {
+        let options = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary
+        AXIsProcessTrustedWithOptions(options)
     }
 
     static func openScreenRecordingSettings() {

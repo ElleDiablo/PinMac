@@ -13,7 +13,7 @@ everything else.
 2. Open it and drag **PinMac** into **Applications**.
 3. The app isn't notarized by Apple, so the first time, **right-click PinMac → Open → Open**.
    (Or run `xattr -dr com.apple.quarantine /Applications/PinMac.app`.)
-4. Grant the two permissions when asked (System Settings → Privacy & Security):
+4. The welcome window walks you through two permissions (System Settings → Privacy & Security):
    - **Screen Recording**: to show a live copy of the pinned window
    - **Accessibility**: to bring the real window forward when you click it
 
@@ -89,6 +89,7 @@ Sources/PinMac/
   HotKey.swift          global shortcut registration (Carbon)
   Shortcut.swift        shortcut model, storage, and recorder popover
   BorderColorPicker.swift  border color popover
+  Welcome.swift         first-launch guide and permission setup
   PinManager.swift      tracks pinned windows ~30×/second
   PinnedWindow.swift    floating mirror panel + border for one window
   WindowStream.swift    ScreenCaptureKit live capture
