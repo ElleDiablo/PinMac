@@ -173,12 +173,15 @@ final class WelcomeWindowController: NSObject, NSWindowDelegate {
         model.startWatching()
 
         if window == nil {
-            let hosting = NSHostingController(rootView: WelcomeView(model: model))
-            hosting.sizingOptions = .preferredContentSize
-            let window = NSWindow(contentViewController: hosting)
-            window.styleMask = [.titled, .closable, .fullSizeContentView]
-            window.titlebarAppearsTransparent = true
-            window.titleVisibility = .hidden
+            // A fixed size: letting SwiftUI and the window resize each other can
+            // loop until AppKit throws ("more Update Constraints passes than views").
+            let hosting = NSHostingView(rootView: WelcomeView(model: model))
+            let size = hosting.fittingSize // measure before turning off size reporting
+            hosting.sizingOptions = []
+            let window = NSWindow(contentRect: NSRect(origin: .zero, size: size),
+                                  styleMask: [.titled, .closable], backing: .buffered, defer: false)
+            window.contentView = hosting
+            window.title = "Welcome to PinMac"
             window.isReleasedWhenClosed = false
             window.delegate = self
             self.window = window
