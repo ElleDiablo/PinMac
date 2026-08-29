@@ -11,6 +11,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSPopo
     private let colorModel = BorderColorModel()
     private let shortcutModel = ShortcutModel()
     private let welcome = WelcomeWindowController()
+    private let about = AboutWindowController()
     private lazy var colorPopover = makePopover(BorderColorView(model: colorModel))
     private lazy var shortcutPopover = makePopover(ShortcutView(model: shortcutModel))
 
@@ -219,12 +220,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSPopo
         }
     }
 
-    @objc private func showAbout() {
-        NSApp.activate()
-        NSApp.orderFrontStandardAboutPanel(options: [
-            .credits: NSAttributedString(string: "Keep any window on top.\nPress \(shortcutModel.shortcut.displayString) to pin or unpin the frontmost window."),
-        ])
-    }
+    @objc private func showAbout() { about.show(shortcut: shortcutModel.shortcut) }
 
     private func showError(_ error: Error) {
         NSApp.activate()

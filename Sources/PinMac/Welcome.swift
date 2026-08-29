@@ -173,16 +173,7 @@ final class WelcomeWindowController: NSObject, NSWindowDelegate {
         model.startWatching()
 
         if window == nil {
-            // A fixed size: letting SwiftUI and the window resize each other can
-            // loop until AppKit throws ("more Update Constraints passes than views").
-            let hosting = NSHostingView(rootView: WelcomeView(model: model))
-            let size = hosting.fittingSize // measure before turning off size reporting
-            hosting.sizingOptions = []
-            let window = NSWindow(contentRect: NSRect(origin: .zero, size: size),
-                                  styleMask: [.titled, .closable], backing: .buffered, defer: false)
-            window.contentView = hosting
-            window.title = "Welcome to PinMac"
-            window.isReleasedWhenClosed = false
+            let window = NSWindow.fixedSize(title: "Welcome to PinMac", rootView: WelcomeView(model: model))
             window.delegate = self
             self.window = window
         }

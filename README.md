@@ -90,6 +90,8 @@ Sources/PinMac/
   Shortcut.swift        shortcut model, storage, and recorder popover
   BorderColorPicker.swift  border color popover
   Welcome.swift         first-launch guide and permission setup
+  About.swift           About window
+  HostingWindow.swift   fixed-size windows for SwiftUI views
   PinManager.swift      tracks pinned windows ~30×/second
   PinnedWindow.swift    floating mirror panel + border for one window
   WindowStream.swift    ScreenCaptureKit live capture
