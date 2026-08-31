@@ -60,8 +60,9 @@ final class PinnedWindow {
         panel.backgroundColor = .clear
         panel.hidesOnDeactivate = false
         panel.isReleasedWhenClosed = false
-        // Follow the user to every Space, including full-screen apps.
-        panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .ignoresCycle]
+        // Follow the user to every Space, including full-screen apps, but stay out
+        // of Mission Control and App Exposé, where it would show as an empty window.
+        panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .transient, .ignoresCycle]
         panel.contentView = view
 
         stream = WindowStream(
