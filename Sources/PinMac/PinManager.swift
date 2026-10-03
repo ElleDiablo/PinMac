@@ -29,8 +29,13 @@ final class PinManager {
         }
     }
 
-    var pinnedWindows: [WindowInfo] {
-        pins.values.map(\.info).sorted { $0.displayName < $1.displayName }
+    var pinnedWindows: [PinnedWindow] {
+        pins.values.sorted { $0.info.displayName < $1.info.displayName }
+    }
+
+    func raise(_ id: CGWindowID) {
+        guard let info = pins[id]?.info else { return }
+        WindowRaiser.raise(windowID: info.id, pid: info.pid)
     }
 
     /// Pins the frontmost window of the active app, or unpins it if it's already pinned.

@@ -43,6 +43,13 @@ final class PinnedWindow {
         set { view.borderColor = newValue }
     }
 
+    /// How see-through the floating copy is while it covers other windows.
+    /// The real window can't be made transparent, so this applies to the mirror.
+    var opacity: CGFloat {
+        get { view.mirrorOpacity }
+        set { view.mirrorOpacity = newValue }
+    }
+
     /// Minimized, or its app is hidden: nothing should be shown for it.
     var isMinimizedOrHidden: Bool {
         if NSRunningApplication(processIdentifier: info.pid)?.isHidden == true { return true }
@@ -226,6 +233,10 @@ private final class PinView: NSView {
 
     var borderColor = NSColor.controlAccentColor {
         didSet { borderLayer.borderColor = borderColor.cgColor }
+    }
+
+    var mirrorOpacity: CGFloat = 1 {
+        didSet { mirrorLayer.opacity = Float(mirrorOpacity) }
     }
 
     /// The real window's corner radius; the outline sits just outside it.

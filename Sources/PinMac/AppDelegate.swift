@@ -71,12 +71,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSPopo
         let pinned = pins.pinnedWindows
         if !pinned.isEmpty {
             menu.addItem(.separator())
-            menu.addItem(.sectionHeader(title: "Pinned — click to unpin"))
-            for window in pinned {
-                let unpin = item(window.displayName, #selector(unpinWindow(_:)))
-                unpin.representedObject = window.id
-                unpin.image = NSImage(systemSymbolName: "pin.slash", accessibilityDescription: nil)
-                menu.addItem(unpin)
+            menu.addItem(.sectionHeader(title: "Pinned"))
+            for pin in pinned {
+                let window = NSMenuItem(title: pin.info.displayName, action: nil, keyEquivalent: "")
+                window.image = NSImage(systemSymbolName: "pin.fill", accessibilityDescription: nil)
+                window.submenu = pinMenu(for: pin)
+                menu.addItem(window)
             }
             menu.addItem(item("Unpin All", #selector(unpinAll)))
         }
@@ -101,6 +101,31 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSPopo
         menu.addItem(item("Welcome Guide…", #selector(showWelcome)))
         menu.addItem(item("About PinMac", #selector(showAbout)))
         menu.addItem(item("Quit PinMac", #selector(quit)))
+    }
+
+    /// Per-window options for one pinned window.
+    private func pinMenu(for pin: PinnedWindow) -> NSMenu {
+        let menu = NSMenu()
+        let id = pin.info.id
+
+        menu.addItem(.sectionHeader(title: "Opacity While Floating"))
+        for percent in [100, 80, 60, 40, 20] {
+            let opacity = item("\(percent)%", #selector(setOpacity(_:)))
+            opacity.representedObject = id
+            opacity.tag = percent
+            opacity.state = Int((pin.opacity * 100).rounded()) == percent ? .on : .off
+            menu.addItem(opacity)
+        }
+
+        menu.addItem(.separator())
+        let raise = item("Bring to Front", #selector(raiseWindow(_:)))
+        raise.representedObject = id
+        menu.addItem(raise)
+        let unpin = item("Unpin", #selector(unpinWindow(_:)))
+        unpin.representedObject = id
+        unpin.image = NSImage(systemSymbolName: "pin.slash", accessibilityDescription: nil)
+        menu.addItem(unpin)
+        return menu
     }
 
     private static let presetColors: [(String, NSColor)] = [
@@ -202,6 +227,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSPopo
 
     func popoverDidClose(_ notification: Notification) {
         shortcutModel.stopRecording()
+    }
+
+    @objc private func setOpacity(_ sender: NSMenuItem) {
+        guard let id = sender.representedObject as? CGWindowID else { return }
+        pins.pins[id]?.opacity = CGFloat(sender.tag) / 100
+    }
+
+    @objc private func raiseWindow(_ sender: NSMenuItem) {
+        if let id = sender.representedObject as? CGWindowID { pins.raise(id) }
     }
 
     @objc private func unpinWindow(_ sender: NSMenuItem) {

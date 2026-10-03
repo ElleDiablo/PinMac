@@ -25,7 +25,8 @@ Requires macOS 14 Sonoma or later (Apple Silicon and Intel).
 | --- | --- |
 | Pin / unpin frontmost window | **⌃⌘T**, or menu bar 📌 → *Pin / Unpin Frontmost Window* |
 | Change the shortcut | Menu bar 📌 → *Change Shortcut…*, click the box, press new keys |
-| Unpin a specific window | Menu bar 📌 → click it under *Pinned* |
+| Unpin a specific window | Menu bar 📌 → the window under *Pinned* → *Unpin* |
+| Make a pinned window see-through | Menu bar 📌 → the window → *Opacity While Floating* |
 | Unpin everything | Menu bar 📌 → *Unpin All* |
 | Show / hide the border | Menu bar 📌 → *Border* → *Show Border* |
 | Change the border color | Menu bar 📌 → *Border* → pick a color, or *Custom Color…* |
@@ -48,7 +49,11 @@ PinMac uses a different approach:
    you're working with the real window directly.
 4. Clicking the floating copy brings the real window to the front through
    the **Accessibility API**.
-5. Pinned windows follow you to every Space, including full-screen apps,
+5. The floating copy can be made see-through, so you can watch a video or
+   follow a reference while seeing your work underneath. (macOS doesn't let
+   one app make another's real window transparent, so opacity applies while
+   the copy is floating over other windows.)
+6. Pinned windows follow you to every Space, including full-screen apps,
    where they appear as the live copy.
 
 ### Limitations
