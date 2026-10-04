@@ -50,6 +50,12 @@ final class PinnedWindow {
         set { view.mirrorOpacity = newValue }
     }
 
+    /// Lets clicks pass through the floating copy to the windows underneath,
+    /// like a heads-up display. Pairs well with a lower opacity.
+    var isClickThrough = false {
+        didSet { updateMouseHandling() }
+    }
+
     /// Minimized, or its app is hidden: nothing should be shown for it.
     var isMinimizedOrHidden: Bool {
         if NSRunningApplication(processIdentifier: info.pid)?.isHidden == true { return true }
@@ -137,10 +143,14 @@ final class PinnedWindow {
         guard newMode != mode else { return }
         mode = newMode
         view.showsMirror = newMode == .mirror
-        // The outline alone shouldn't block clicks on the real window beneath it.
-        panel.ignoresMouseEvents = newMode != .mirror
+        updateMouseHandling()
         panel.hasShadow = newMode == .mirror
         if newMode == .hidden { panel.orderOut(nil) }
+    }
+
+    private func updateMouseHandling() {
+        // The outline alone shouldn't block clicks on the real window beneath it.
+        panel.ignoresMouseEvents = mode != .mirror || isClickThrough
     }
 
     /// Places the panel directly above or below another window in the stacking order.

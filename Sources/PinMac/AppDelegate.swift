@@ -118,6 +118,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSPopo
         }
 
         menu.addItem(.separator())
+        let clickThrough = item("Click Through", #selector(toggleClickThrough(_:)))
+        clickThrough.representedObject = id
+        clickThrough.state = pin.isClickThrough ? .on : .off
+        clickThrough.toolTip = "Clicks go to the windows underneath. Use Bring to Front to work in this window."
+        menu.addItem(clickThrough)
+
+        menu.addItem(.separator())
         let raise = item("Bring to Front", #selector(raiseWindow(_:)))
         raise.representedObject = id
         menu.addItem(raise)
@@ -232,6 +239,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSPopo
     @objc private func setOpacity(_ sender: NSMenuItem) {
         guard let id = sender.representedObject as? CGWindowID else { return }
         pins.pins[id]?.opacity = CGFloat(sender.tag) / 100
+    }
+
+    @objc private func toggleClickThrough(_ sender: NSMenuItem) {
+        guard let id = sender.representedObject as? CGWindowID else { return }
+        pins.pins[id]?.isClickThrough.toggle()
     }
 
     @objc private func raiseWindow(_ sender: NSMenuItem) {

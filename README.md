@@ -27,6 +27,7 @@ Requires macOS 14 Sonoma or later (Apple Silicon and Intel).
 | Change the shortcut | Menu bar 📌 → *Change Shortcut…*, click the box, press new keys |
 | Unpin a specific window | Menu bar 📌 → the window under *Pinned* → *Unpin* |
 | Make a pinned window see-through | Menu bar 📌 → the window → *Opacity While Floating* |
+| Click through a pinned window | Menu bar 📌 → the window → *Click Through* (use *Bring to Front* to work in it) |
 | Unpin everything | Menu bar 📌 → *Unpin All* |
 | Show / hide the border | Menu bar 📌 → *Border* → *Show Border* |
 | Change the border color | Menu bar 📌 → *Border* → pick a color, or *Custom Color…* |
