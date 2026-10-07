@@ -12,6 +12,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSPopo
     private let shortcutModel = ShortcutModel()
     private let welcome = WelcomeWindowController()
     private let about = AboutWindowController()
+    private let cropSelector = CropSelector()
     private lazy var colorPopover = makePopover(BorderColorView(model: colorModel))
     private lazy var shortcutPopover = makePopover(ShortcutView(model: shortcutModel))
 
@@ -123,6 +124,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSPopo
         clickThrough.state = pin.isClickThrough ? .on : .off
         clickThrough.toolTip = "Clicks go to the windows underneath. Use Bring to Front to work in this window."
         menu.addItem(clickThrough)
+
+        let crop = item(pin.crop == nil ? "Crop to Part of Window…" : "Change Crop…", #selector(cropWindow(_:)))
+        crop.representedObject = id
+        crop.toolTip = "Only the part you choose floats on top, e.g. just the video in a browser."
+        menu.addItem(crop)
+        if pin.crop != nil {
+            let whole = item("Show Whole Window", #selector(uncropWindow(_:)))
+            whole.representedObject = id
+            menu.addItem(whole)
+        }
 
         menu.addItem(.separator())
         let raise = item("Bring to Front", #selector(raiseWindow(_:)))
@@ -244,6 +255,29 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSPopo
     @objc private func toggleClickThrough(_ sender: NSMenuItem) {
         guard let id = sender.representedObject as? CGWindowID else { return }
         pins.pins[id]?.isClickThrough.toggle()
+    }
+
+    @objc private func cropWindow(_ sender: NSMenuItem) {
+        guard let id = sender.representedObject as? CGWindowID else { return }
+        // Bring the real window forward so you can see what you're selecting.
+        pins.raise(id)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [self] in
+            guard let pin = pins.pins[id] else { return }
+            cropSelector.show(over: pin.windowFrame, current: pin.crop) { [weak self] result in
+                guard let pin = self?.pins.pins[id] else { return }
+                switch result {
+                case .crop(let rect): pin.setCrop(rect)
+                case .wholeWindow: pin.setCrop(nil)
+                case .cancelled: break
+                }
+                self?.pins.raise(id)
+            }
+        }
+    }
+
+    @objc private func uncropWindow(_ sender: NSMenuItem) {
+        guard let id = sender.representedObject as? CGWindowID else { return }
+        pins.pins[id]?.setCrop(nil)
     }
 
     @objc private func raiseWindow(_ sender: NSMenuItem) {

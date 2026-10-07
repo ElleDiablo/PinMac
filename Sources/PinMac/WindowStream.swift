@@ -23,20 +23,22 @@ final class WindowStream: NSObject, SCStreamOutput, SCStreamDelegate {
         self.onStop = onStop
     }
 
-    func start(windowID: CGWindowID, size: CGSize, scale: CGFloat) async throws {
+    /// `sourceRect` limits capture to part of the window, in window points from its top-left.
+    func start(windowID: CGWindowID, size: CGSize, scale: CGFloat, sourceRect: CGRect? = nil) async throws {
         let content = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: false)
         guard let window = content.windows.first(where: { $0.windowID == windowID }) else {
             throw PinError.windowNotFound
         }
         let filter = SCContentFilter(desktopIndependentWindow: window)
-        let stream = SCStream(filter: filter, configuration: Self.configuration(size: size, scale: scale), delegate: self)
+        let configuration = Self.configuration(size: size, scale: scale, sourceRect: sourceRect)
+        let stream = SCStream(filter: filter, configuration: configuration, delegate: self)
         try stream.addStreamOutput(self, type: .screen, sampleHandlerQueue: .main)
         try await stream.startCapture()
         self.stream = stream
     }
 
-    func resize(to size: CGSize, scale: CGFloat) {
-        stream?.updateConfiguration(Self.configuration(size: size, scale: scale)) { _ in }
+    func resize(to size: CGSize, scale: CGFloat, sourceRect: CGRect? = nil) {
+        stream?.updateConfiguration(Self.configuration(size: size, scale: scale, sourceRect: sourceRect)) { _ in }
     }
 
     func stop() {
@@ -44,8 +46,9 @@ final class WindowStream: NSObject, SCStreamOutput, SCStreamDelegate {
         stream = nil
     }
 
-    private static func configuration(size: CGSize, scale: CGFloat) -> SCStreamConfiguration {
+    private static func configuration(size: CGSize, scale: CGFloat, sourceRect: CGRect?) -> SCStreamConfiguration {
         let config = SCStreamConfiguration()
+        if let sourceRect { config.sourceRect = sourceRect }
         config.width = max(1, Int(size.width * scale))
         config.height = max(1, Int(size.height * scale))
         config.minimumFrameInterval = CMTime(value: 1, timescale: 60)

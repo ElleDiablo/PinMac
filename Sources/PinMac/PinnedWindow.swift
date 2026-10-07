@@ -22,6 +22,7 @@ final class PinnedWindow {
     private let view = PinView()
     private var stream: WindowStream!
     private var needsCornerRadius = true
+    private var windowCornerRadius: CGFloat = 12
     private var lastMove = Date.distantPast
     private var axElement: AXUIElement?
 
@@ -54,6 +55,29 @@ final class PinnedWindow {
     /// like a heads-up display. Pairs well with a lower opacity.
     var isClickThrough = false {
         didSet { updateMouseHandling() }
+    }
+
+    /// The part of the window that floats on top, in window points from its
+    /// top-left corner; nil for the whole window.
+    private(set) var crop: CGRect?
+
+    /// The real window's frame in global CoreGraphics coordinates.
+    var windowFrame: CGRect { frame }
+
+    func setCrop(_ rect: CGRect?) {
+        let bounds = CGRect(origin: .zero, size: frame.size)
+        crop = rect.map { $0.intersection(bounds).integral }.flatMap { $0.isEmpty || $0 == bounds ? nil : $0 }
+        view.cornerRadius = crop == nil ? windowCornerRadius : 8
+        view.roundsMirror = crop != nil
+        hasFrame = false // the last frame shows the old area; wait for a new one
+        stream.resize(to: visibleRect.size, scale: scale, sourceRect: crop)
+        updatePanelFrame()
+    }
+
+    /// What the panel covers: the cropped part, or the whole window.
+    private var visibleRect: CGRect {
+        guard let crop else { return frame }
+        return crop.offsetBy(dx: frame.minX, dy: frame.minY)
     }
 
     /// Minimized, or its app is hidden: nothing should be shown for it.
@@ -90,7 +114,7 @@ final class PinnedWindow {
     func start() async throws {
         capture = .starting
         do {
-            try await stream.start(windowID: info.id, size: frame.size, scale: scale)
+            try await stream.start(windowID: info.id, size: visibleRect.size, scale: scale, sourceRect: crop)
             capture = .running
         } catch {
             capture = .idle
@@ -108,7 +132,7 @@ final class PinnedWindow {
             capture = .starting
             Task {
                 do {
-                    try await stream.start(windowID: info.id, size: frame.size, scale: scale)
+                    try await stream.start(windowID: info.id, size: visibleRect.size, scale: scale, sourceRect: crop)
                     capture = .running
                 } catch {
                     capture = .idle
@@ -129,11 +153,13 @@ final class PinnedWindow {
             if view.isMoving, Date.now.timeIntervalSince(lastMove) > 0.15 { view.isMoving = false }
             return
         }
-        if newFrame.size != frame.size {
-            stream.resize(to: newFrame.size, scale: scale)
-            needsCornerRadius = true
-        }
+        let resized = newFrame.size != frame.size
         frame = newFrame
+        if resized {
+            if let crop { self.crop = crop.intersection(CGRect(origin: .zero, size: frame.size)) }
+            stream.resize(to: visibleRect.size, scale: scale, sourceRect: crop)
+            needsCornerRadius = crop == nil
+        }
         lastMove = .now
         view.isMoving = true
         updatePanelFrame()
@@ -174,16 +200,18 @@ final class PinnedWindow {
     private func show(_ surface: IOSurface) {
         hasFrame = true
         view.show(surface)
-        if needsCornerRadius {
+        // A cropped frame doesn't include the window's corners.
+        if needsCornerRadius, crop == nil {
             needsCornerRadius = false
             if let radius = Self.cornerRadius(of: surface, pointWidth: frame.width) {
+                windowCornerRadius = radius
                 view.cornerRadius = radius
             }
         }
     }
 
     private func updatePanelFrame() {
-        let outer = frame.flippedToAppKit.insetBy(dx: -Self.borderWidth, dy: -Self.borderWidth)
+        let outer = visibleRect.flippedToAppKit.insetBy(dx: -Self.borderWidth, dy: -Self.borderWidth)
         if panel.frame != outer { panel.setFrame(outer, display: true) }
     }
 
@@ -243,6 +271,14 @@ private final class PinView: NSView {
 
     var borderColor = NSColor.controlAccentColor {
         didSet { borderLayer.borderColor = borderColor.cgColor }
+    }
+
+    /// A cropped copy has square edges, so round them to match the outline.
+    var roundsMirror = false {
+        didSet {
+            mirrorLayer.cornerRadius = roundsMirror ? cornerRadius : 0
+            mirrorLayer.masksToBounds = roundsMirror
+        }
     }
 
     var mirrorOpacity: CGFloat = 1 {

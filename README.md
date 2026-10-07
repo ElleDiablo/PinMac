@@ -27,6 +27,7 @@ Requires macOS 14 Sonoma or later (Apple Silicon and Intel).
 | Change the shortcut | Menu bar 📌 → *Change Shortcut…*, click the box, press new keys |
 | Unpin a specific window | Menu bar 📌 → the window under *Pinned* → *Unpin* |
 | Make a pinned window see-through | Menu bar 📌 → the window → *Opacity While Floating* |
+| Float only part of a window | Menu bar 📌 → the window → *Crop to Part of Window…*, drag a box, press Return |
 | Click through a pinned window | Menu bar 📌 → the window → *Click Through* (use *Bring to Front* to work in it) |
 | Unpin everything | Menu bar 📌 → *Unpin All* |
 | Show / hide the border | Menu bar 📌 → *Border* → *Show Border* |
@@ -96,6 +97,7 @@ Sources/PinMac/
   Shortcut.swift        shortcut model, storage, and recorder popover
   BorderColorPicker.swift  border color popover
   Welcome.swift         first-launch guide and permission setup
+  CropSelector.swift    overlay for choosing the part of a window to float
   About.swift           About window
   HostingWindow.swift   fixed-size windows for SwiftUI views
   PinManager.swift      tracks pinned windows ~30×/second
