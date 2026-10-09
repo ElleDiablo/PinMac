@@ -9,6 +9,7 @@ struct Shortcut: Codable, Equatable {
     var key: String    // display name of the key, e.g. "T" or "Space"
 
     static let `default` = Shortcut(keyCode: kVK_ANSI_T, modifiers: controlKey | cmdKey, key: "T")
+    static let defaultResetCrop = Shortcut(keyCode: kVK_ANSI_R, modifiers: controlKey | cmdKey, key: "R")
 
     /// Modifier symbols in Apple's standard order, e.g. "⌃⌘T".
     var displayString: String {
@@ -69,15 +70,15 @@ struct Shortcut: Codable, Equatable {
 
     // MARK: Storage
 
-    static func load() -> Shortcut {
-        guard let data = UserDefaults.standard.data(forKey: "shortcut"),
+    static func load(forKey key: String, default defaultShortcut: Shortcut) -> Shortcut {
+        guard let data = UserDefaults.standard.data(forKey: key),
               let shortcut = try? JSONDecoder().decode(Shortcut.self, from: data)
-        else { return .default }
+        else { return defaultShortcut }
         return shortcut
     }
 
-    func save() {
-        UserDefaults.standard.set(try? JSONEncoder().encode(self), forKey: "shortcut")
+    func save(forKey key: String) {
+        UserDefaults.standard.set(try? JSONEncoder().encode(self), forKey: key)
     }
 }
 
@@ -85,22 +86,38 @@ private extension String {
     var nilIfBlank: String? { trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : self }
 }
 
-/// State behind the shortcut popover.
+/// One recordable shortcut in the Shortcuts popover.
 @MainActor
 final class ShortcutModel: ObservableObject {
-    @Published private(set) var shortcut = Shortcut.load()
+    let title: String
+    let detail: String
+    let defaultShortcut: Shortcut
+    private let storageKey: String
+
+    @Published private(set) var shortcut: Shortcut
     @Published private(set) var isRecording = false
     @Published private(set) var message: String?
 
     /// Tries to register a shortcut; returns false if it's unavailable.
     var register: ((Shortcut) -> Bool)?
-    /// Pauses the current shortcut while recording, so pressing it doesn't pin.
+    /// Pauses the current shortcut while recording, so pressing it doesn't trigger it.
     var pause: (() -> Void)?
+    /// Called when recording starts, so other rows can stop recording.
+    var onStartRecording: (() -> Void)?
 
     private var monitor: Any?
 
+    init(title: String, detail: String, storageKey: String, default defaultShortcut: Shortcut) {
+        self.title = title
+        self.detail = detail
+        self.storageKey = storageKey
+        self.defaultShortcut = defaultShortcut
+        shortcut = Shortcut.load(forKey: storageKey, default: defaultShortcut)
+    }
+
     func startRecording() {
         guard !isRecording else { return }
+        onStartRecording?()
         isRecording = true
         message = nil
         pause?()
@@ -120,7 +137,7 @@ final class ShortcutModel: ObservableObject {
 
     func reset() {
         stopRecording()
-        apply(.default)
+        apply(defaultShortcut)
     }
 
     private func handle(_ event: NSEvent) {
@@ -139,24 +156,44 @@ final class ShortcutModel: ObservableObject {
     private func apply(_ candidate: Shortcut) {
         if register?(candidate) == true {
             shortcut = candidate
-            shortcut.save()
+            shortcut.save(forKey: storageKey)
             message = nil
         } else {
             _ = register?(shortcut)
-            message = "\(candidate.displayString) is already used by another app."
+            message = "\(candidate.displayString) is already in use."
         }
     }
 }
 
-struct ShortcutView: View {
+/// The Shortcuts popover: one recorder per shortcut.
+struct ShortcutsView: View {
+    let models: [ShortcutModel]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Shortcuts").font(.headline)
+            ForEach(Array(models.enumerated()), id: \.offset) { index, model in
+                if index > 0 { Divider() }
+                ShortcutRow(model: model)
+            }
+        }
+        .padding(16)
+        .frame(width: 280)
+    }
+}
+
+private struct ShortcutRow: View {
     @ObservedObject var model: ShortcutModel
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Pin Shortcut").font(.headline)
-            Text("Pins or unpins the frontmost window.")
-                .font(.callout)
-                .foregroundStyle(.secondary)
+        VStack(alignment: .leading, spacing: 10) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(model.title).font(.subheadline.weight(.semibold))
+                Text(model.detail)
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
 
             Button {
                 model.isRecording ? model.stopRecording() : model.startRecording()
@@ -186,11 +223,9 @@ struct ShortcutView: View {
 
             HStack {
                 Spacer()
-                Button("Reset to \(Shortcut.default.displayString)") { model.reset() }
-                    .disabled(model.shortcut == .default && !model.isRecording)
+                Button("Reset to \(model.defaultShortcut.displayString)") { model.reset() }
+                    .disabled(model.shortcut == model.defaultShortcut && !model.isRecording)
             }
         }
-        .padding(16)
-        .frame(width: 260)
     }
 }

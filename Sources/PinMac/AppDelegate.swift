@@ -7,14 +7,19 @@ import SwiftUI
 final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSPopoverDelegate {
     private var statusItem: NSStatusItem!
     private let pins = PinManager()
-    private var hotKey: HotKey?
+    private var hotKeys: [ObjectIdentifier: HotKey] = [:]
     private let colorModel = BorderColorModel()
-    private let shortcutModel = ShortcutModel()
+    private let pinShortcut = ShortcutModel(
+        title: "Pin or Unpin", detail: "Pins or unpins the frontmost window.",
+        storageKey: "shortcut", default: .default)
+    private let resetCropShortcut = ShortcutModel(
+        title: "Reset Crop", detail: "Shows cropped pinned windows whole again.",
+        storageKey: "resetCropShortcut", default: .defaultResetCrop)
     private let welcome = WelcomeWindowController()
     private let about = AboutWindowController()
     private let cropSelector = CropSelector()
     private lazy var colorPopover = makePopover(BorderColorView(model: colorModel))
-    private lazy var shortcutPopover = makePopover(ShortcutView(model: shortcutModel))
+    private lazy var shortcutPopover = makePopover(ShortcutsView(models: [pinShortcut, resetCropShortcut]))
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
@@ -23,12 +28,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSPopo
         statusItem.menu = menu
         updateIcon()
 
-        // Defaults to ⌃⌘T, the Mac counterpart of PowerToys' Win+Ctrl+T.
-        shortcutModel.register = { [weak self] shortcut in self?.registerHotKey(shortcut) ?? false }
-        shortcutModel.pause = { [weak self] in self?.hotKey = nil }
-        if !registerHotKey(shortcutModel.shortcut) {
-            showError(ShortcutError.unavailable(shortcutModel.shortcut))
-        }
+        // Pinning defaults to ⌃⌘T, the Mac counterpart of PowerToys' Win+Ctrl+T.
+        setUpShortcut(pinShortcut) { [weak self] in self?.pins.toggleFrontmost() }
+        setUpShortcut(resetCropShortcut) { [weak self] in self?.resetCrop() }
 
         pins.onChange = { [weak self] in self?.updateIcon() }
         pins.onError = { [weak self] error in self?.showError(error) }
@@ -41,11 +43,33 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSPopo
         if WelcomeWindowController.shouldShowAtLaunch { showWelcome() }
     }
 
-    @discardableResult
-    private func registerHotKey(_ shortcut: Shortcut) -> Bool {
-        hotKey = nil // release the old shortcut first
-        hotKey = HotKey(shortcut) { [weak self] in self?.pins.toggleFrontmost() }
-        return hotKey != nil
+    private func setUpShortcut(_ model: ShortcutModel, action: @escaping @MainActor () -> Void) {
+        let key = ObjectIdentifier(model)
+        model.register = { [weak self] shortcut in
+            guard let self else { return false }
+            hotKeys[key] = nil // release the old shortcut first
+            hotKeys[key] = HotKey(shortcut, action: action)
+            return hotKeys[key] != nil
+        }
+        model.pause = { [weak self] in self?.hotKeys[key] = nil }
+        model.onStartRecording = { [weak self] in
+            // Only one row records at a time.
+            for other in [self?.pinShortcut, self?.resetCropShortcut] where other !== model {
+                other?.stopRecording()
+            }
+        }
+        if model.register?(model.shortcut) != true {
+            showError(ShortcutError.unavailable(model.shortcut))
+        }
+    }
+
+    private func resetCrop() {
+        // While choosing a crop, the shortcut picks "whole window" there too.
+        if cropSelector.isShowing {
+            cropSelector.finish(.wholeWindow)
+        } else if !pins.resetCrops() {
+            NSSound.beep()
+        }
     }
 
     private func updateIcon() {
@@ -60,14 +84,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSPopo
     func menuNeedsUpdate(_ menu: NSMenu) {
         menu.removeAllItems()
 
-        let shortcut = shortcutModel.shortcut
-        let toggleTitle = "Pin / Unpin Frontmost Window"
-        let toggle = item(shortcut.menuKeyEquivalent.isEmpty ? "\(toggleTitle)  \(shortcut.displayString)" : toggleTitle,
-                          #selector(toggleFrontmost))
-        toggle.keyEquivalent = shortcut.menuKeyEquivalent
-        toggle.keyEquivalentModifierMask = shortcut.menuModifiers
-        menu.addItem(toggle)
-        menu.addItem(item("Change Shortcut…", #selector(showShortcutPopover)))
+        menu.addItem(item("Pin / Unpin Frontmost Window", #selector(toggleFrontmost), shortcut: pinShortcut.shortcut))
+        menu.addItem(item("Shortcuts…", #selector(showShortcutPopover)))
 
         let pinned = pins.pinnedWindows
         if !pinned.isEmpty {
@@ -130,7 +148,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSPopo
         crop.toolTip = "Only the part you choose floats on top, e.g. just the video in a browser."
         menu.addItem(crop)
         if pin.crop != nil {
-            let whole = item("Show Whole Window", #selector(uncropWindow(_:)))
+            let whole = item("Reset to Whole Window", #selector(uncropWindow(_:)), shortcut: resetCropShortcut.shortcut)
             whole.representedObject = id
             menu.addItem(whole)
         }
@@ -194,6 +212,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSPopo
         }
     }
 
+    /// A menu item that shows a global shortcut next to it.
+    private func item(_ title: String, _ action: Selector, shortcut: Shortcut) -> NSMenuItem {
+        let item = item(shortcut.menuKeyEquivalent.isEmpty ? "\(title)  \(shortcut.displayString)" : title, action)
+        item.keyEquivalent = shortcut.menuKeyEquivalent
+        item.keyEquivalentModifierMask = shortcut.menuModifiers
+        return item
+    }
+
     private func item(_ title: String, _ action: Selector) -> NSMenuItem {
         let item = NSMenuItem(title: title, action: action, keyEquivalent: "")
         item.target = self
@@ -204,7 +230,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSPopo
     @objc private func unpinAll() { pins.unpinAll() }
     @objc private func toggleBorder() { pins.showsBorder.toggle() }
     @objc private func toggleSounds() { pins.playsSounds.toggle() }
-    @objc private func showWelcome() { welcome.show(shortcut: shortcutModel.shortcut) }
+    @objc private func showWelcome() { welcome.show(shortcut: pinShortcut.shortcut) }
     @objc private func quit() { NSApp.terminate(nil) }
 
     @objc private func chooseBorderColor(_ sender: NSMenuItem) {
@@ -244,7 +270,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSPopo
     }
 
     func popoverDidClose(_ notification: Notification) {
-        shortcutModel.stopRecording()
+        pinShortcut.stopRecording()
+        resetCropShortcut.stopRecording()
     }
 
     @objc private func setOpacity(_ sender: NSMenuItem) {
@@ -263,7 +290,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSPopo
         pins.raise(id)
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [self] in
             guard let pin = pins.pins[id] else { return }
-            cropSelector.show(over: pin.windowFrame, current: pin.crop) { [weak self] result in
+            cropSelector.show(over: pin.windowFrame, current: pin.crop,
+                              resetShortcut: resetCropShortcut.shortcut) { [weak self] result in
                 guard let pin = self?.pins.pins[id] else { return }
                 switch result {
                 case .crop(let rect): pin.setCrop(rect)
@@ -277,7 +305,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSPopo
 
     @objc private func uncropWindow(_ sender: NSMenuItem) {
         guard let id = sender.representedObject as? CGWindowID else { return }
-        pins.pins[id]?.setCrop(nil)
+        pins.resetCrop(id)
     }
 
     @objc private func raiseWindow(_ sender: NSMenuItem) {
@@ -300,7 +328,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSPopo
         }
     }
 
-    @objc private func showAbout() { about.show(shortcut: shortcutModel.shortcut) }
+    @objc private func showAbout() { about.show(shortcut: pinShortcut.shortcut) }
 
     private func showError(_ error: Error) {
         NSApp.activate()

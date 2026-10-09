@@ -11,9 +11,18 @@ final class CropSelector {
     }
 
     private var panel: NSPanel?
+    private var view: CropView?
+
+    var isShowing: Bool { panel != nil }
+
+    /// Ends the selection as if a toolbar button was pressed.
+    func finish(_ result: Result) {
+        view?.onFinish?(result)
+    }
 
     /// `windowFrame` is in global CoreGraphics coordinates.
-    func show(over windowFrame: CGRect, current: CGRect?, completion: @escaping (Result) -> Void) {
+    func show(over windowFrame: CGRect, current: CGRect?, resetShortcut: Shortcut,
+              completion: @escaping (Result) -> Void) {
         close()
         let panel = KeyPanel(contentRect: windowFrame.flippedToAppKit, styleMask: [.borderless, .nonactivatingPanel],
                              backing: .buffered, defer: false)
@@ -24,13 +33,14 @@ final class CropSelector {
         panel.isReleasedWhenClosed = false
         panel.collectionBehavior = [.transient, .ignoresCycle]
 
-        let view = CropView(selection: current)
+        let view = CropView(selection: current, resetShortcut: resetShortcut)
         view.onFinish = { [weak self] result in
             self?.close()
             completion(result)
         }
         panel.contentView = view
         self.panel = panel
+        self.view = view
 
         NSApp.activate()
         panel.makeKeyAndOrderFront(nil)
@@ -40,6 +50,7 @@ final class CropSelector {
     private func close() {
         panel?.close()
         panel = nil
+        view = nil
     }
 }
 
@@ -52,12 +63,14 @@ private final class CropView: NSView {
     var onFinish: ((CropSelector.Result) -> Void)?
 
     private var selection: CGRect?
+    private let resetShortcut: Shortcut
     private var dragStart: CGPoint?
     private var dragOrigin: CGRect?
     private static let minimumSize = CGSize(width: 60, height: 40)
 
-    init(selection: CGRect?) {
+    init(selection: CGRect?, resetShortcut: Shortcut) {
         self.selection = selection
+        self.resetShortcut = resetShortcut
         super.init(frame: .zero)
         addSubview(toolbar)
     }
@@ -71,14 +84,17 @@ private final class CropView: NSView {
 
     // MARK: Toolbar
 
+    private let hint = NSTextField(labelWithString: "Drag to choose the part that stays on top")
+
     private lazy var toolbar: NSView = {
-        let hint = NSTextField(labelWithString: "Drag to choose the part that stays on top")
         hint.textColor = .white
         hint.font = .systemFont(ofSize: 13, weight: .medium)
 
         let cancel = NSButton(title: "Cancel", target: self, action: #selector(cancel))
         cancel.keyEquivalent = "\u{1b}"
-        let whole = NSButton(title: "Whole Window", target: self, action: #selector(useWholeWindow))
+        // The global reset shortcut also triggers this while the overlay is open.
+        let whole = NSButton(title: "Reset to Whole Window  \(resetShortcut.displayString)",
+                             target: self, action: #selector(useWholeWindow))
         let done = NSButton(title: "Done", target: self, action: #selector(done))
         done.keyEquivalent = "\r"
         done.bezelColor = .controlAccentColor
@@ -95,6 +111,9 @@ private final class CropView: NSView {
 
     override func layout() {
         super.layout()
+        // Drop the hint on narrow windows so the buttons always fit.
+        hint.isHidden = false
+        if toolbar.fittingSize.width > bounds.width - 16 { hint.isHidden = true }
         let size = toolbar.fittingSize
         toolbar.frame = CGRect(x: (bounds.width - size.width) / 2, y: bounds.height - size.height - 16,
                                width: size.width, height: size.height)
