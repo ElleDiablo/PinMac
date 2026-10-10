@@ -27,8 +27,8 @@ Requires macOS 14 Sonoma or later (Apple Silicon and Intel).
 | Change a shortcut | Menu bar 📌 → *Shortcuts…*, click the box, press new keys |
 | Unpin a specific window | Menu bar 📌 → the window under *Pinned* → *Unpin* |
 | Make a pinned window see-through | Menu bar 📌 → the window → *Opacity While Floating* |
-| Float only part of a window | Menu bar 📌 → the window → *Crop to Part of Window…*, drag a box, press Return |
-| Show a cropped window whole again | **⌃⌘R**, or menu bar 📌 → the window → *Reset to Whole Window* |
+| Float only part of a window | In a pinned window press **⌃⌘R**, or menu bar 📌 → the window → *Crop to Part of Window…*; drag a box, press Return |
+| Show a cropped window whole again | **⌃⌘R** again, or menu bar 📌 → the window → *Reset to Whole Window* |
 | Click through a pinned window | Menu bar 📌 → the window → *Click Through* (use *Bring to Front* to work in it) |
 | Unpin everything | Menu bar 📌 → *Unpin All* |
 | Show / hide the border | Menu bar 📌 → *Border* → *Show Border* |

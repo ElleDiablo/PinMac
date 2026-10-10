@@ -39,19 +39,22 @@ final class PinManager {
         play("Pop")
     }
 
-    /// Shows cropped windows whole again: the frontmost window if it's a cropped
-    /// pin, otherwise every cropped pin (they're usually floating over other work).
-    /// Returns false if nothing was cropped.
+    /// Shows every cropped window whole again. Returns false if none were cropped.
     @discardableResult
-    func resetCrops() -> Bool {
+    func resetAllCrops() -> Bool {
         let cropped = pins.values.filter { $0.crop != nil }
         guard !cropped.isEmpty else { return false }
-        let frontmostPID = NSWorkspace.shared.frontmostApplication?.processIdentifier
-        let frontmostID = WindowList.onScreen().first { $0.pid == frontmostPID }?.id
-        let targets = cropped.filter { $0.info.id == frontmostID }
-        (targets.isEmpty ? cropped : targets).forEach { $0.setCrop(nil) }
+        cropped.forEach { $0.setCrop(nil) }
         play("Pop")
         return true
+    }
+
+    /// The pinned window you're working in, if any.
+    var frontmostPin: PinnedWindow? {
+        guard let pid = NSWorkspace.shared.frontmostApplication?.processIdentifier,
+              let window = WindowList.onScreen().first(where: { $0.pid == pid })
+        else { return nil }
+        return pins[window.id]
     }
 
     func raise(_ id: CGWindowID) {

@@ -13,7 +13,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSPopo
         title: "Pin or Unpin", detail: "Pins or unpins the frontmost window.",
         storageKey: "shortcut", default: .default)
     private let resetCropShortcut = ShortcutModel(
-        title: "Reset Crop", detail: "Shows cropped pinned windows whole again.",
+        title: "Crop or Reset Crop",
+        detail: "In a pinned window, opens the crop view, or shows it whole again if it's cropped.",
         storageKey: "resetCropShortcut", default: .defaultResetCrop)
     private let welcome = WelcomeWindowController()
     private let about = AboutWindowController()
@@ -30,7 +31,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSPopo
 
         // Pinning defaults to ⌃⌘T, the Mac counterpart of PowerToys' Win+Ctrl+T.
         setUpShortcut(pinShortcut) { [weak self] in self?.pins.toggleFrontmost() }
-        setUpShortcut(resetCropShortcut) { [weak self] in self?.resetCrop() }
+        setUpShortcut(resetCropShortcut) { [weak self] in self?.cropShortcutPressed() }
 
         pins.onChange = { [weak self] in self?.updateIcon() }
         pins.onError = { [weak self] error in self?.showError(error) }
@@ -63,12 +64,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSPopo
         }
     }
 
-    private func resetCrop() {
-        // While choosing a crop, the shortcut picks "whole window" there too.
+    /// One shortcut for cropping: it does what fits the moment.
+    private func cropShortcutPressed() {
         if cropSelector.isShowing {
-            cropSelector.finish(.wholeWindow)
-        } else if !pins.resetCrops() {
-            NSSound.beep()
+            cropSelector.finish(.wholeWindow) // the overlay's "Reset to Whole Window"
+        } else if let pin = pins.frontmostPin {
+            if pin.crop == nil {
+                startCrop(pin.info.id)
+            } else {
+                pins.resetCrop(pin.info.id)
+            }
+        } else if !pins.resetAllCrops() {
+            NSSound.beep() // working elsewhere, and nothing is cropped
         }
     }
 
@@ -143,7 +150,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSPopo
         clickThrough.toolTip = "Clicks go to the windows underneath. Use Bring to Front to work in this window."
         menu.addItem(clickThrough)
 
-        let crop = item(pin.crop == nil ? "Crop to Part of Window…" : "Change Crop…", #selector(cropWindow(_:)))
+        let crop = pin.crop == nil
+            ? item("Crop to Part of Window…", #selector(cropWindow(_:)), shortcut: resetCropShortcut.shortcut)
+            : item("Change Crop…", #selector(cropWindow(_:)))
         crop.representedObject = id
         crop.toolTip = "Only the part you choose floats on top, e.g. just the video in a browser."
         menu.addItem(crop)
@@ -285,7 +294,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSPopo
     }
 
     @objc private func cropWindow(_ sender: NSMenuItem) {
-        guard let id = sender.representedObject as? CGWindowID else { return }
+        if let id = sender.representedObject as? CGWindowID { startCrop(id) }
+    }
+
+    private func startCrop(_ id: CGWindowID) {
         // Bring the real window forward so you can see what you're selecting.
         pins.raise(id)
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [self] in
