@@ -8,6 +8,7 @@ final class WelcomeModel: ObservableObject {
     @Published private(set) var screenRecording = Permissions.screenRecording
     @Published private(set) var accessibility = Permissions.accessibility
     @Published var shortcut = Shortcut.default
+    @Published var cropShortcut = Shortcut.defaultResetCrop
 
     var onDone: (() -> Void)?
     private var timer: Timer?
@@ -81,13 +82,16 @@ struct WelcomeView: View {
                     .foregroundStyle(.secondary)
             }
 
-            HStack(spacing: 10) {
-                Image(systemName: "keyboard").font(.title3).foregroundStyle(.secondary)
-                Text("Click any window, then press **\(model.shortcut.displayString)** to pin it. Press it again to unpin.")
-                    .fixedSize(horizontal: false, vertical: true)
+            VStack(alignment: .leading, spacing: 12) {
+                TipRow(icon: "pin", keys: model.shortcut.displayString,
+                       text: "Click any window, then press this to pin it on top. Press it again to unpin.")
+                TipRow(icon: "crop", keys: model.cropShortcut.displayString,
+                       text: "In a pinned window, press this to float just part of it, like a video. Press it again for the whole window.")
+                TipRow(icon: "slider.horizontal.3", keys: nil,
+                       text: "In the 📌 menu, each pinned window has options for opacity and click-through. Pick a border color under Border.")
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(12)
+            .padding(14)
             .background(RoundedRectangle(cornerRadius: 10).fill(Color.primary.opacity(0.05)))
 
             VStack(alignment: .leading, spacing: 14) {
@@ -129,6 +133,33 @@ struct WelcomeView: View {
     }
 }
 
+private struct TipRow: View {
+    let icon: String
+    let keys: String?
+    let text: String
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 12) {
+            Image(systemName: icon)
+                .font(.title3)
+                .foregroundStyle(.secondary)
+                .frame(width: 26)
+            VStack(alignment: .leading, spacing: 4) {
+                if let keys {
+                    Text(keys)
+                        .font(.system(.callout, design: .rounded).weight(.semibold))
+                        .padding(.horizontal, 7)
+                        .padding(.vertical, 1)
+                        .background(RoundedRectangle(cornerRadius: 5).fill(Color.primary.opacity(0.08)))
+                }
+                Text(text)
+                    .font(.callout)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+    }
+}
+
 private struct PermissionRow: View {
     let icon: String
     let title: String
@@ -167,8 +198,9 @@ final class WelcomeWindowController: NSObject, NSWindowDelegate {
     let model = WelcomeModel()
     private var window: NSWindow?
 
-    func show(shortcut: Shortcut) {
+    func show(shortcut: Shortcut, cropShortcut: Shortcut) {
         model.shortcut = shortcut
+        model.cropShortcut = cropShortcut
         model.onDone = { [weak self] in self?.window?.close() }
         model.startWatching()
 

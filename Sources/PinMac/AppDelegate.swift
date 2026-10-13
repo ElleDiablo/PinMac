@@ -239,7 +239,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSPopo
     @objc private func unpinAll() { pins.unpinAll() }
     @objc private func toggleBorder() { pins.showsBorder.toggle() }
     @objc private func toggleSounds() { pins.playsSounds.toggle() }
-    @objc private func showWelcome() { welcome.show(shortcut: pinShortcut.shortcut) }
+    @objc private func showWelcome() {
+        welcome.show(shortcut: pinShortcut.shortcut, cropShortcut: resetCropShortcut.shortcut)
+    }
     @objc private func quit() { NSApp.terminate(nil) }
 
     @objc private func chooseBorderColor(_ sender: NSMenuItem) {
