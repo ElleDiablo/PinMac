@@ -176,9 +176,10 @@ Sources/PinMac/
   Welcome.swift            welcome guide and permission setup
   About.swift              About window
   HostingWindow.swift      fixed-size windows for SwiftUI views
+  PinShape.swift           PinMac's pin, shared by the app and menu-bar icons
 scripts/
   build.sh                 builds the .app and .dmg
-  make-icon.swift          draws the app icon
+  make-icon.swift          draws the app icon (delete Resources/AppIcon.icns to regenerate)
 ```
 
 ### Releasing

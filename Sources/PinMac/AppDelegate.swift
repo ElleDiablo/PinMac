@@ -80,10 +80,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSPopo
     }
 
     private func updateIcon() {
-        let symbol = pins.pins.isEmpty ? "pin" : "pin.fill"
-        let image = NSImage(systemSymbolName: symbol, accessibilityDescription: "PinMac")
-        image?.isTemplate = true
-        statusItem.button?.image = image
+        statusItem.button?.image = PinShape.menuBarImage(filled: !pins.pins.isEmpty)
     }
 
     // MARK: Menu
