@@ -4,6 +4,20 @@ All notable changes to PinMac are listed here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Changed
+- New app icon: PinMac's own tilted pin on deep purple. The menu-bar icon uses
+  the same pin (outline when nothing is pinned, filled when something is).
+
+### Added
+- **Smooth Switching** option: keeps pinned windows' copies live, so switching
+  never shows an old frame. The screen-recording indicator stays on.
+
+### Fixed
+- Pinned windows no longer flicker when you click a window behind them or
+  switch apps.
+
 ## [1.1.0] - 2026-10-28
 
 Picture-in-picture features.
@@ -49,5 +63,6 @@ First release.
 - Crash when opening the welcome window.
 - Empty "PinMac" windows showing in Mission Control and App Exposé.
 
+[Unreleased]: https://github.com/ElleDiablo/PinMac/compare/v1.1.0...HEAD
 [1.1.0]: https://github.com/ElleDiablo/PinMac/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/ElleDiablo/PinMac/releases/tag/v1.0.0

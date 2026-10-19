@@ -4,6 +4,12 @@ import AppKit
 final class PinManager {
     private(set) var pins: [CGWindowID: PinnedWindow] = [:]
     private var timer: Timer?
+    private var clickMonitor: Any?
+    private var activationObserver: NSObjectProtocol?
+    /// While set, pins held by a click stay held until they're covered or time runs out.
+    private var holdDeadline: Date?
+    /// Pinned windows that were in front at the last tick.
+    private var onTopIDs: Set<CGWindowID> = []
 
     /// Called whenever a window is pinned or unpinned.
     var onChange: (() -> Void)?
@@ -13,6 +19,15 @@ final class PinManager {
         didSet {
             UserDefaults.standard.set(showsBorder, forKey: "showsBorder")
             pins.values.forEach { $0.showsBorder = showsBorder }
+            tick()
+        }
+    }
+
+    /// Keeps capturing pinned windows even while they're in front, so the copy is
+    /// always current when something covers them. Leaves the purple indicator on.
+    var smoothSwitching = UserDefaults.standard.bool(forKey: "smoothSwitching") {
+        didSet {
+            UserDefaults.standard.set(smoothSwitching, forKey: "smoothSwitching")
             tick()
         }
     }
@@ -133,12 +148,50 @@ final class PinManager {
         // .common keeps tracking alive while the status menu is open.
         RunLoop.main.add(timer, forMode: .common)
         self.timer = timer
+        startWatchingForCovers()
         tick()
     }
 
     private func stopTimer() {
         timer?.invalidate()
         timer = nil
+        if let clickMonitor { NSEvent.removeMonitor(clickMonitor) }
+        clickMonitor = nil
+        if let activationObserver { NSWorkspace.shared.notificationCenter.removeObserver(activationObserver) }
+        activationObserver = nil
+    }
+
+    /// Reacts to the things that bring another window forward, instead of
+    /// waiting up to a tick to notice.
+    private func startWatchingForCovers() {
+        clickMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown, .otherMouseDown]) { [weak self] _ in
+            MainActor.assumeIsolated { self?.mouseDownElsewhere() }
+        }
+        activationObserver = NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.didActivateApplicationNotification, object: nil, queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated { self?.tick() } // e.g. ⌘Tab
+        }
+    }
+
+    /// A click in another app is about to raise its window over ours: hold the
+    /// pinned windows' copies on top until the tick sees what changed.
+    private func mouseDownElsewhere() {
+        let point = NSEvent.mouseLocation
+        // Clicking a pinned window (or its copy) doesn't cover anything pinned.
+        guard !pins.values.contains(where: { $0.screenFrame.contains(point) }) else { return }
+
+        let onTop = pins.values.filter { onTopIDs.contains($0.info.id) }
+        guard !onTop.isEmpty else { return }
+        onTop.forEach { pin in
+            pin.setCaptureNeeded(true) // get live frames as soon as possible
+            pin.hold()
+        }
+        holdDeadline = .now + 0.4
+        // Check quickly while the other app comes forward.
+        for delay in [0.03, 0.08, 0.15, 0.25, 0.42] {
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in self?.tick() }
+        }
     }
 
     /// Follows each pinned window and arranges PinMac's panels in the stacking
@@ -173,6 +226,16 @@ final class PinManager {
         let topCount = windows.prefix { pins[$0.id] != nil }.count
         let anchor = windows.dropFirst(topCount).first
 
+        // Held copies stay above everything until their window is covered for real
+        // (then normal stacking takes over below) or the hold runs out.
+        let holding = holdDeadline.map { Date.now < $0 } ?? false
+        if !holding { holdDeadline = nil }
+        let topIDs = Set(windows.prefix(topCount).map(\.id))
+        onTopIDs = topIDs
+        for pin in pins.values where pin.isHeld && (!holding || !topIDs.contains(pin.info.id)) {
+            pin.releaseHold()
+        }
+
         // The desired order, front to back, of the top of the stack.
         var desired: [CGWindowID] = []
         var panels: [CGWindowID: PinnedWindow] = [:]
@@ -184,9 +247,11 @@ final class PinManager {
         for window in windows.prefix(topCount) {
             guard let pin = pins[window.id] else { continue }
             pin.setFrame(window.frame)
-            pin.setCaptureNeeded(false)
-            pin.setMode(showsBorder ? .border : .hidden)
-            if pin.mode != .hidden { add(pin) }
+            pin.setCaptureNeeded(smoothSwitching || pin.isHeld)
+            if !pin.isHeld {
+                pin.setMode(showsBorder ? .border : .hidden)
+                if pin.mode != .hidden { add(pin) }
+            }
             desired.append(window.id)
         }
         elsewhere.forEach(add)

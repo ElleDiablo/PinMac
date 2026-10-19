@@ -165,6 +165,32 @@ final class PinnedWindow {
         updatePanelFrame()
     }
 
+    /// The area this pin covers on screen, in AppKit coordinates.
+    var screenFrame: NSRect { visibleRect.flippedToAppKit }
+
+    /// True while the copy is held above every normal window; see `hold()`.
+    private(set) var isHeld = false
+
+    /// Shows the copy above all normal windows right away. Used the moment you
+    /// click another window: macOS raises that window before PinMac's next tick
+    /// would notice, which used to flash the pinned window away.
+    func hold() {
+        guard hasFrame, !isHeld else { return }
+        isHeld = true
+        setMode(.mirror)
+        panel.level = .floating
+        updateMouseHandling()
+        panel.orderFrontRegardless()
+    }
+
+    /// Returns to normal stacking, where the tick places the panel precisely.
+    func releaseHold() {
+        guard isHeld else { return }
+        isHeld = false
+        panel.level = .normal
+        updateMouseHandling()
+    }
+
     func setMode(_ newMode: Mode) {
         guard newMode != mode else { return }
         mode = newMode
@@ -176,7 +202,7 @@ final class PinnedWindow {
 
     private func updateMouseHandling() {
         // The outline alone shouldn't block clicks on the real window beneath it.
-        panel.ignoresMouseEvents = mode != .mirror || isClickThrough
+        panel.ignoresMouseEvents = mode != .mirror || isClickThrough || isHeld
     }
 
     /// Places the panel directly above or below another window in the stacking order.

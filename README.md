@@ -70,6 +70,7 @@ new keys. Shortcuts must include ⌃, ⌥ or ⌘.
 | Unpin All | Unpin every window |
 | Border → Show Border | Turn the outline on or off |
 | Border → a color | Accent color, 8 presets, or *Custom Color…* (picker, hex codes, saved colors) |
+| Smooth Switching | Keeps pinned windows' copies live, so switching apps never shows an old frame (the purple recording indicator stays on) |
 | Play Sounds | Sounds when pinning and unpinning |
 | Launch at Login | Start PinMac when you log in |
 | Welcome Guide… | Reopen the setup and tips window |
@@ -129,7 +130,8 @@ PinMac uses a different approach:
 
 **The purple recording icon appears in the menu bar.** macOS shows it whenever
 an app captures the screen, and apps can't hide it. PinMac only captures while
-a pinned window is covered, so it goes away when your pinned windows are in front.
+a pinned window is covered, so it goes away when your pinned windows are in front
+(unless *Smooth Switching* is on).
 
 **Pinning does nothing, or the pinned window doesn't float.** Open 📌 →
 **Welcome Guide…** and check both permissions show *Allowed*. If you just

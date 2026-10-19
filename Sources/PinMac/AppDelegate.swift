@@ -113,6 +113,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSPopo
         let border = NSMenuItem(title: "Border", action: nil, keyEquivalent: "")
         border.submenu = borderMenu()
         menu.addItem(border)
+        let smooth = item("Smooth Switching", #selector(toggleSmoothSwitching))
+        smooth.state = pins.smoothSwitching ? .on : .off
+        smooth.toolTip = "Keeps pinned windows' copies live so switching never shows an old frame. macOS's screen-recording indicator stays on."
+        menu.addItem(smooth)
         let sounds = item("Play Sounds", #selector(toggleSounds))
         sounds.state = pins.playsSounds ? .on : .off
         menu.addItem(sounds)
@@ -236,6 +240,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSPopo
     @objc private func unpinAll() { pins.unpinAll() }
     @objc private func toggleBorder() { pins.showsBorder.toggle() }
     @objc private func toggleSounds() { pins.playsSounds.toggle() }
+    @objc private func toggleSmoothSwitching() { pins.smoothSwitching.toggle() }
     @objc private func showWelcome() {
         welcome.show(shortcut: pinShortcut.shortcut, cropShortcut: resetCropShortcut.shortcut)
     }
