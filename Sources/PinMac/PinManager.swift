@@ -64,6 +64,28 @@ final class PinManager {
         return true
     }
 
+    /// Steps the opacity down (100% → 80% → … → 20% → 100%) and returns the
+    /// pins that changed. It targets the pin under the mouse pointer, so you
+    /// can hover over a floating window; else the pin you're working in; else all.
+    func cycleOpacity() -> [PinnedWindow] {
+        let mouse = NSEvent.mouseLocation
+        let targets: [PinnedWindow]
+        if let hovered = pins.values.first(where: { $0.screenFrame.contains(mouse) }) {
+            targets = [hovered]
+        } else if let frontmost = frontmostPin {
+            targets = [frontmost]
+        } else {
+            targets = pinnedWindows
+        }
+        guard let first = targets.first else { return [] }
+
+        let steps = PinnedWindow.opacitySteps
+        let current = steps.firstIndex { abs($0 - first.opacity) < 0.01 } ?? 0
+        let next = steps[(current + 1) % steps.count]
+        targets.forEach { $0.opacity = next }
+        return targets
+    }
+
     /// The pinned window you're working in, if any.
     var frontmostPin: PinnedWindow? {
         guard let pid = NSWorkspace.shared.frontmostApplication?.processIdentifier,

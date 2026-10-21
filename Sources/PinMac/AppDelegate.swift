@@ -16,11 +16,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSPopo
         title: "Crop or Reset Crop",
         detail: "In a pinned window, opens the crop view, or shows it whole again if it's cropped.",
         storageKey: "resetCropShortcut", default: .defaultResetCrop)
+    private let opacityShortcut = ShortcutModel(
+        title: "Change Opacity",
+        detail: "Steps through 100% to 20%. Hover over a pinned window to pick it, or it changes the one you're in.",
+        storageKey: "opacityShortcut", default: .defaultOpacity)
+    private var shortcutModels: [ShortcutModel] { [pinShortcut, resetCropShortcut, opacityShortcut] }
     private let welcome = WelcomeWindowController()
     private let about = AboutWindowController()
     private let cropSelector = CropSelector()
     private lazy var colorPopover = makePopover(BorderColorView(model: colorModel))
-    private lazy var shortcutPopover = makePopover(ShortcutsView(models: [pinShortcut, resetCropShortcut]))
+    private lazy var shortcutPopover = makePopover(ShortcutsView(models: shortcutModels))
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
@@ -32,6 +37,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSPopo
         // Pinning defaults to ⌃⌘T, the Mac counterpart of PowerToys' Win+Ctrl+T.
         setUpShortcut(pinShortcut) { [weak self] in self?.pins.toggleFrontmost() }
         setUpShortcut(resetCropShortcut) { [weak self] in self?.cropShortcutPressed() }
+        setUpShortcut(opacityShortcut) { [weak self] in self?.opacityShortcutPressed() }
 
         pins.onChange = { [weak self] in self?.updateIcon() }
         pins.onError = { [weak self] error in self?.showError(error) }
@@ -55,12 +61,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSPopo
         model.pause = { [weak self] in self?.hotKeys[key] = nil }
         model.onStartRecording = { [weak self] in
             // Only one row records at a time.
-            for other in [self?.pinShortcut, self?.resetCropShortcut] where other !== model {
-                other?.stopRecording()
-            }
+            self?.shortcutModels.filter { $0 !== model }.forEach { $0.stopRecording() }
         }
         if model.register?(model.shortcut) != true {
             showError(ShortcutError.unavailable(model.shortcut))
+        }
+    }
+
+    private func opacityShortcutPressed() {
+        let changed = pins.cycleOpacity()
+        guard !changed.isEmpty else {
+            NSSound.beep() // nothing pinned
+            return
+        }
+        // Opacity only shows while a window floats, so confirm it on screen.
+        for pin in changed {
+            HUD.show("Opacity \(Int((pin.opacity * 100).rounded()))%", detail: "while floating", over: pin.screenFrame, for: pin.info.id)
         }
     }
 
@@ -135,8 +151,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSPopo
         let menu = NSMenu()
         let id = pin.info.id
 
-        menu.addItem(.sectionHeader(title: "Opacity While Floating"))
-        for percent in [100, 80, 60, 40, 20] {
+        menu.addItem(.sectionHeader(title: "Opacity While Floating  (\(opacityShortcut.shortcut.displayString) to cycle)"))
+        for percent in PinnedWindow.opacitySteps.map({ Int(($0 * 100).rounded()) }) {
             let opacity = item("\(percent)%", #selector(setOpacity(_:)))
             opacity.representedObject = id
             opacity.tag = percent
@@ -242,7 +258,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSPopo
     @objc private func toggleSounds() { pins.playsSounds.toggle() }
     @objc private func toggleSmoothSwitching() { pins.smoothSwitching.toggle() }
     @objc private func showWelcome() {
-        welcome.show(shortcut: pinShortcut.shortcut, cropShortcut: resetCropShortcut.shortcut)
+        welcome.show(shortcut: pinShortcut.shortcut, cropShortcut: resetCropShortcut.shortcut,
+                     opacityShortcut: opacityShortcut.shortcut)
     }
     @objc private func quit() { NSApp.terminate(nil) }
 
@@ -283,8 +300,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSPopo
     }
 
     func popoverDidClose(_ notification: Notification) {
-        pinShortcut.stopRecording()
-        resetCropShortcut.stopRecording()
+        shortcutModels.forEach { $0.stopRecording() }
     }
 
     @objc private func setOpacity(_ sender: NSMenuItem) {

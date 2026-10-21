@@ -9,6 +9,7 @@ final class WelcomeModel: ObservableObject {
     @Published private(set) var accessibility = Permissions.accessibility
     @Published var shortcut = Shortcut.default
     @Published var cropShortcut = Shortcut.defaultResetCrop
+    @Published var opacityShortcut = Shortcut.defaultOpacity
 
     var onDone: (() -> Void)?
     private var timer: Timer?
@@ -87,8 +88,10 @@ struct WelcomeView: View {
                        text: "Click any window, then press this to pin it on top. Press it again to unpin.")
                 TipRow(icon: "crop", keys: model.cropShortcut.displayString,
                        text: "In a pinned window, press this to float just part of it, like a video. Press it again for the whole window.")
+                TipRow(icon: "circle.lefthalf.filled", keys: model.opacityShortcut.displayString,
+                       text: "Hover over a pinned window and press this to make it see-through while it floats.")
                 TipRow(icon: "slider.horizontal.3", keys: nil,
-                       text: "In the 📌 menu, each pinned window has options for opacity and click-through. Pick a border color under Border.")
+                       text: "In the 📌 menu, each pinned window has more options, like click-through. Pick a border color under Border.")
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(14)
@@ -198,9 +201,10 @@ final class WelcomeWindowController: NSObject, NSWindowDelegate {
     let model = WelcomeModel()
     private var window: NSWindow?
 
-    func show(shortcut: Shortcut, cropShortcut: Shortcut) {
+    func show(shortcut: Shortcut, cropShortcut: Shortcut, opacityShortcut: Shortcut) {
         model.shortcut = shortcut
         model.cropShortcut = cropShortcut
+        model.opacityShortcut = opacityShortcut
         model.onDone = { [weak self] in self?.window?.close() }
         model.startWatching()
 

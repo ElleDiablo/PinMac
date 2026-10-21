@@ -52,10 +52,11 @@ PinMac lives in the menu bar under the 📌 icon. There's no Dock icon.
 | --- | --- |
 | **⌃⌘T** | Pin or unpin the window you're working in |
 | **⌃⌘R** | In a pinned window: open the crop view, or show it whole again if it's cropped. Elsewhere: show all cropped windows whole again |
+| **⌃⌘O** | Step opacity 100% → 80% → 60% → 40% → 20%. Changes the pinned window under the pointer, else the one you're in, else all |
 | **Return** | In the crop view: use the selected part |
 | **Esc** | In the crop view or while recording a shortcut: cancel |
 
-Change either shortcut from 📌 → **Shortcuts…**: click the box, then press the
+Change any shortcut from 📌 → **Shortcuts…**: click the box, then press the
 new keys. Shortcuts must include ⌃, ⌥ or ⌘.
 
 ## Menu reference
@@ -65,7 +66,7 @@ new keys. Shortcuts must include ⌃, ⌥ or ⌘.
 | Item | What it does |
 | --- | --- |
 | Pin / Unpin Frontmost Window | Same as ⌃⌘T |
-| Shortcuts… | Change the pin and crop shortcuts |
+| Shortcuts… | Change the pin, crop, and opacity shortcuts |
 | *Pinned* → a window | Options for that window (see below) |
 | Unpin All | Unpin every window |
 | Border → Show Border | Turn the outline on or off |
@@ -79,7 +80,7 @@ new keys. Shortcuts must include ⌃, ⌥ or ⌘.
 
 | Item | What it does |
 | --- | --- |
-| Opacity While Floating | 100% to 20%: how see-through the window is while it floats over others |
+| Opacity While Floating | 100% to 20%: how see-through the window is while it floats over others (⌃⌘O) |
 | Click Through | Clicks go to the windows underneath |
 | Crop to Part of Window… | Choose the part that floats on top (⌃⌘R) |
 | Change Crop… / Reset to Whole Window | Adjust or remove the crop |
@@ -91,8 +92,8 @@ new keys. Shortcuts must include ⌃, ⌥ or ⌘.
 - **Watch a video while you work:** pin the browser window and crop it to just
   the video with ⌃⌘R. The cropped part floats where it is in the window, so
   move the window first to place the video where you want it.
-- **Follow a tutorial or reference:** pin it, set *Opacity While Floating* to
-  60%, and turn on *Click Through*. You can see it and keep working underneath.
+- **Follow a tutorial or reference:** pin it, hover over it and press ⌃⌘O
+  until it's 60%, and turn on *Click Through*. You can see it and keep working underneath.
 - With *Click Through* on, use *Bring to Front* (or ⌘-Tab) to work in the
   pinned window.
 
@@ -178,6 +179,7 @@ Sources/PinMac/
   Welcome.swift            welcome guide and permission setup
   About.swift              About window
   HostingWindow.swift      fixed-size windows for SwiftUI views
+  HUD.swift                brief on-screen labels (e.g. "Opacity 60%")
   PinShape.swift           PinMac's pin, shared by the app and menu-bar icons
 scripts/
   build.sh                 builds the .app and .dmg

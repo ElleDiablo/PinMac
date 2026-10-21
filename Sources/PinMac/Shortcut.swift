@@ -10,6 +10,7 @@ struct Shortcut: Codable, Equatable {
 
     static let `default` = Shortcut(keyCode: kVK_ANSI_T, modifiers: controlKey | cmdKey, key: "T")
     static let defaultResetCrop = Shortcut(keyCode: kVK_ANSI_R, modifiers: controlKey | cmdKey, key: "R")
+    static let defaultOpacity = Shortcut(keyCode: kVK_ANSI_O, modifiers: controlKey | cmdKey, key: "O")
 
     /// Modifier symbols in Apple's standard order, e.g. "⌃⌘T".
     var displayString: String {

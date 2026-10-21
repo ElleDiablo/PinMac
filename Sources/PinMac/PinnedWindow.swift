@@ -44,6 +44,9 @@ final class PinnedWindow {
         set { view.borderColor = newValue }
     }
 
+    /// The opacity choices, from solid to most see-through.
+    static let opacitySteps: [CGFloat] = [1, 0.8, 0.6, 0.4, 0.2]
+
     /// How see-through the floating copy is while it covers other windows.
     /// The real window can't be made transparent, so this applies to the mirror.
     var opacity: CGFloat {
