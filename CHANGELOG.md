@@ -13,6 +13,7 @@ All notable changes to PinMac are listed here. The format follows
 ### Added
 - **Opacity shortcut ⌃⌘O**: steps a pinned window's opacity from 100% down to
   20%, with an on-screen label. Hover over a pinned window to pick it.
+- The About window lists all three shortcuts.
 - **Smooth Switching** option: keeps pinned windows' copies live, so switching
   never shows an old frame. The screen-recording indicator stays on.
 

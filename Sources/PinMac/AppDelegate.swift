@@ -360,7 +360,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSPopo
         }
     }
 
-    @objc private func showAbout() { about.show(shortcut: pinShortcut.shortcut) }
+    @objc private func showAbout() {
+        about.show(shortcuts: [
+            ("Pin or unpin a window", pinShortcut.shortcut),
+            ("Crop, or show the whole window", resetCropShortcut.shortcut),
+            ("Change opacity", opacityShortcut.shortcut),
+        ])
+    }
 
     private func showError(_ error: Error) {
         NSApp.activate()

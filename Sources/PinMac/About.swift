@@ -12,7 +12,8 @@ enum AppInfo {
 }
 
 struct AboutView: View {
-    let shortcut: Shortcut
+    /// What each shortcut does, in menu order, e.g. ("Pin or unpin", ⌃⌘T).
+    let shortcuts: [(action: String, shortcut: Shortcut)]
 
     var body: some View {
         VStack(spacing: 0) {
@@ -35,13 +36,18 @@ struct AboutView: View {
                 .foregroundStyle(.secondary)
                 .padding(.top, 14)
 
-            HStack(spacing: 6) {
-                Text("Pin or unpin with")
-                Text(shortcut.displayString)
-                    .font(.system(.body, design: .rounded).weight(.semibold))
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 2)
-                    .background(RoundedRectangle(cornerRadius: 6).fill(Color.primary.opacity(0.08)))
+            Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 8) {
+                ForEach(shortcuts, id: \.action) { item in
+                    GridRow {
+                        Text(item.shortcut.displayString)
+                            .font(.system(.body, design: .rounded).weight(.semibold))
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 2)
+                            .background(RoundedRectangle(cornerRadius: 6).fill(Color.primary.opacity(0.08)))
+                            .gridColumnAlignment(.trailing)
+                        Text(item.action)
+                    }
+                }
             }
             .padding(.top, 16)
 
@@ -87,10 +93,10 @@ private struct LinkButton: View {
 final class AboutWindowController {
     private var window: NSWindow?
 
-    func show(shortcut: Shortcut) {
-        // Rebuilt each time so the shortcut shown is always current.
+    func show(shortcuts: [(action: String, shortcut: Shortcut)]) {
+        // Rebuilt each time so the shortcuts shown are always current.
         window?.close()
-        let window = NSWindow.fixedSize(title: "About PinMac", rootView: AboutView(shortcut: shortcut))
+        let window = NSWindow.fixedSize(title: "About PinMac", rootView: AboutView(shortcuts: shortcuts))
         self.window = window
         NSApp.activate()
         window.center()
