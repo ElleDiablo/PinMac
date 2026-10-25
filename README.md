@@ -1,7 +1,24 @@
-# PinMac 📌
+<p align="center">
+  <img src="docs/icon.png" width="128" height="128" alt="PinMac icon">
+</p>
 
-**Keep any window on top — on macOS.** A small, free menu-bar app inspired by
-the *Always On Top* utility in Microsoft PowerToys.
+<h1 align="center">PinMac</h1>
+
+<p align="center">
+  <strong>Keep any window on top, on macOS.</strong><br>
+  A small, free menu-bar app inspired by the <em>Always On Top</em> tool in Microsoft PowerToys.
+</p>
+
+<p align="center">
+  <a href="../../releases/latest"><img src="https://img.shields.io/github/v/release/ElleDiablo/PinMac?label=download&color=7E5FD8" alt="Latest release"></a>
+  <img src="https://img.shields.io/badge/macOS-14%2B-47289E" alt="macOS 14 or later">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-7E5FD8" alt="MIT license"></a>
+</p>
+
+<p align="center">
+  <img src="docs/demo.gif" width="720" alt="PinMac pinning a video window, cropping it, and making it see-through">
+  <br><sub>Illustration of PinMac in use.</sub>
+</p>
 
 Press **⌃⌘T** to pin the window you're working in. It gets a colored border
 and stays visible above everything else, even full-screen apps. Press **⌃⌘T**
@@ -10,25 +27,30 @@ again to unpin it.
 ## Features
 
 - **Pin any window** with a shortcut, from any app
-- **Colored border** around pinned windows, in any color you like
 - **Crop** a pinned window so only part of it floats on top, like just the
-  video in a browser tab
-- **Opacity**: make a floating window see-through
+  video in a browser tab (**⌃⌘R**)
+- **Opacity**: make a floating window see-through (**⌃⌘O**)
 - **Click-through**: clicks pass through a floating window to what's underneath
+- **Colored border** around pinned windows, in any color you like
 - **Works everywhere**: pinned windows follow you to every Space and appear
   over full-screen apps
 - **Custom shortcuts**, sounds, and launch at login
+- **Private**: no accounts, no tracking, nothing leaves your Mac
 
 ## Install
 
-1. Download the latest `PinMac-x.y.z.dmg` from [Releases](../../releases).
+1. Download `PinMac-x.y.z.dmg` from the [latest release](../../releases/latest).
 2. Open it and drag **PinMac** into **Applications**.
-3. PinMac isn't notarized by Apple, so the first time, **right-click PinMac →
-   Open → Open**. (Or run `xattr -dr com.apple.quarantine /Applications/PinMac.app`.)
+3. Open PinMac. Because it isn't notarized by Apple (that needs a paid
+   developer account), macOS blocks it the first time:
+   - Click **Done** on the warning.
+   - Open **System Settings → Privacy & Security**, scroll down, and click
+     **Open Anyway** next to the PinMac message. Confirm with your password.
+   - Or, in Terminal: `xattr -dr com.apple.quarantine /Applications/PinMac.app`
 4. The welcome window walks you through two permissions in
    System Settings → Privacy & Security:
    - **Screen Recording**: shows a live copy of a pinned window while other
-     windows cover it. Nothing is saved or sent anywhere.
+     windows cover it.
    - **Accessibility**: brings the real window to the front when you click a
      pinned window.
 5. After allowing Screen Recording, quit and reopen PinMac (macOS requires it).
@@ -127,6 +149,19 @@ PinMac uses a different approach:
 - The border hides while a window is being dragged or resized, and comes
   back as soon as it stops.
 
+## Privacy
+
+PinMac has no accounts, analytics, or network access. Screen Recording is used
+only to show a live copy of the windows you pin; frames stay in memory and are
+never saved or sent anywhere. The code is open, so you can check.
+
+## Uninstall
+
+1. Quit PinMac (📌 → **Quit PinMac**) and drag it from Applications to the Trash.
+2. Optional: remove its settings with `defaults delete io.github.ellediablo.PinMac`,
+   and remove PinMac from Screen Recording and Accessibility in
+   System Settings → Privacy & Security.
+
 ## Troubleshooting
 
 **The purple recording icon appears in the menu bar.** macOS shows it whenever
@@ -140,6 +175,10 @@ allowed Screen Recording, click *Reopen PinMac*.
 
 **A shortcut doesn't work.** Another app may already use it. Pick a different
 one in 📌 → **Shortcuts…**.
+
+**macOS says PinMac "can't be opened" or is "damaged".** That's Gatekeeper
+blocking an app that isn't notarized. Use **Open Anyway** or the `xattr`
+command from [Install](#install).
 
 **Permissions stopped working after updating.** In System Settings → Privacy &
 Security, remove PinMac from Screen Recording and Accessibility, then allow it
@@ -184,6 +223,7 @@ Sources/PinMac/
 scripts/
   build.sh                 builds the .app and .dmg
   make-icon.swift          draws the app icon (delete Resources/AppIcon.icns to regenerate)
+docs/                      README images
 ```
 
 ### Releasing
