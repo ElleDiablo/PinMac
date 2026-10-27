@@ -237,7 +237,8 @@ git push origin v1.1.0
 
 ## Contributing
 
-Issues and pull requests are welcome!
+Issues and pull requests are welcome! See [CONTRIBUTING.md](CONTRIBUTING.md).
+To report a security problem, see [SECURITY.md](SECURITY.md).
 
 ## License
 

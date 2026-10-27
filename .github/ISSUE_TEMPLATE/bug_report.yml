@@ -1,0 +1,44 @@
+name: Bug report
+description: Something in PinMac doesn't work as expected
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What did you do, what did you expect, and what happened instead?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Pin a Safari window with ⌃⌘T
+        2. Click a window behind it
+        3. ...
+  - type: input
+    id: version
+    attributes:
+      label: PinMac version
+      description: 📌 → About PinMac
+      placeholder: "1.1.0"
+    validations:
+      required: true
+  - type: input
+    id: macos
+    attributes:
+      label: macOS version
+      placeholder: "macOS 26.1, Apple Silicon"
+    validations:
+      required: true
+  - type: input
+    id: apps
+    attributes:
+      label: Which app's window was pinned?
+      placeholder: "Safari, Chrome, VS Code, ..."
+  - type: textarea
+    id: extra
+    attributes:
+      label: Anything else?
+      description: Screenshots, screen recordings, multiple displays, Stage Manager, etc.
