@@ -4,26 +4,9 @@ All notable changes to PinMac are listed here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
-
-### Changed
-- New app icon: PinMac's own tilted pin on deep purple. The menu-bar icon uses
-  the same pin (outline when nothing is pinned, filled when something is).
-
-### Added
-- **Opacity shortcut ⌃⌘O**: steps a pinned window's opacity from 100% down to
-  20%, with an on-screen label. Hover over a pinned window to pick it.
-- The About window lists all three shortcuts.
-- **Smooth Switching** option: keeps pinned windows' copies live, so switching
-  never shows an old frame. The screen-recording indicator stays on.
-
-### Fixed
-- Pinned windows no longer flicker when you click a window behind them or
-  switch apps.
-
 ## [1.1.0] - 2026-10-28
 
-Picture-in-picture features.
+Picture-in-picture features and a new look.
 
 ### Added
 - **Crop**: float only part of a pinned window, such as just the video in a
@@ -34,15 +17,24 @@ Picture-in-picture features.
   floats over other windows.
 - **Click Through**: clicks pass through a floating window to what's underneath.
 - Per-window options menu under 📌 → *Pinned*, with *Bring to Front* and *Unpin*.
-- **Shortcuts…** popover for changing both the pin and crop shortcuts.
+- **Shortcuts…** popover for changing every shortcut.
+- **Opacity shortcut ⌃⌘O**: steps a pinned window's opacity from 100% down to
+  20%, with an on-screen label. Hover over a pinned window to pick it.
+- The About window lists all three shortcuts.
+- **Smooth Switching** option: keeps pinned windows' copies live, so switching
+  never shows an old frame. The screen-recording indicator stays on.
 
 ### Changed
 - README and Welcome Guide cover the new features, with a quick start,
   shortcut list, menu reference, and troubleshooting.
+- New app icon: PinMac's own tilted pin on deep purple. The menu-bar icon uses
+  the same pin (outline when nothing is pinned, filled when something is).
 
 ### Fixed
 - With more than one global shortcut, each now triggers only its own action.
 - The crop overlay's buttons fit on narrow windows.
+- Pinned windows no longer flicker when you click a window behind them or
+  switch apps.
 
 ## [1.0.0] - 2026-08-31
 
@@ -66,6 +58,5 @@ First release.
 - Crash when opening the welcome window.
 - Empty "PinMac" windows showing in Mission Control and App Exposé.
 
-[Unreleased]: https://github.com/ElleDiablo/PinMac/compare/v1.1.0...HEAD
 [1.1.0]: https://github.com/ElleDiablo/PinMac/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/ElleDiablo/PinMac/releases/tag/v1.0.0
