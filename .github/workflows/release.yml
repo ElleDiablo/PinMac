@@ -1,7 +1,7 @@
 name: Release
 
 # Runs when a version tag is pushed, or by hand from the Actions tab
-# ("Run workflow") to (re)publish the release for an existing tag.
+# ("Run workflow") to publish the release for an existing tag.
 on:
   push:
     tags: ["v*"]
@@ -20,21 +20,26 @@ jobs:
     env:
       TAG: ${{ inputs.tag || github.ref_name }}
     steps:
+      # The newest changelog and the list of tags
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # The code being released, built on its own
       - uses: actions/checkout@v4
         with:
           ref: ${{ env.TAG }}
-          fetch-depth: 0
+          path: source
 
       - name: Build app and DMG
+        working-directory: source
         run: scripts/build.sh "$TAG"
 
       - name: Release notes from CHANGELOG.md
         run: |
-          # Use main's changelog, so releases for older tags get notes too.
-          git show origin/main:CHANGELOG.md > changelog.md
           version="${TAG#v}"
           # The release date from the "## [x.y.z] - YYYY-MM-DD" heading
-          released=$(grep -m1 "^## \[$version\]" changelog.md | sed -nE 's/.* - ([0-9]{4}-[0-9]{2}-[0-9]{2}).*/\1/p')
+          released=$(grep -m1 "^## \[$version\]" CHANGELOG.md | sed -nE 's/.* - ([0-9]{4}-[0-9]{2}-[0-9]{2}).*/\1/p')
           {
             if [ -n "$released" ]; then
               echo "_Released $(date -j -f %Y-%m-%d "$released" "+%B %-d, %Y")._"
@@ -44,10 +49,10 @@ jobs:
               $0 ~ "^## \\[" version "\\]" { found = 1; next }
               found && /^(## )?\[/ { exit }
               found { print }
-            ' changelog.md
-          } > notes.md
-          grep -q '[^[:space:]]' notes.md || echo "See CHANGELOG.md for details." > notes.md
-          cat notes.md
+            ' CHANGELOG.md
+          } > release-notes.md
+          grep -q '[^[:space:]]' release-notes.md || echo "See CHANGELOG.md for details." > release-notes.md
+          cat release-notes.md
 
       - name: Publish release
         env:
@@ -56,5 +61,5 @@ jobs:
           # Only the newest version is marked "Latest".
           newest=$(git tag --list 'v*' --sort=-v:refname | head -1)
           if [ "$TAG" = "$newest" ]; then latest=true; else latest=false; fi
-          gh release create "$TAG" build/PinMac-*.dmg --title "PinMac ${TAG#v}" \
-            --notes-file notes.md --latest="$latest"
+          gh release create "$TAG" source/build/PinMac-*.dmg --title "PinMac ${TAG#v}" \
+            --notes-file release-notes.md --latest="$latest"
