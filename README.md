@@ -228,12 +228,16 @@ docs/                      README images
 
 ### Releasing
 
-Push a version tag and GitHub Actions builds the DMG and attaches it to a release:
+Push a version tag and GitHub Actions builds the DMG and publishes a release,
+with notes from [CHANGELOG.md](CHANGELOG.md):
 
 ```bash
-git tag v1.1.0
+git tag -a v1.1.0 -m "PinMac 1.1.0"
 git push origin v1.1.0
 ```
+
+To publish the release for a tag that already exists, open **Actions →
+Release → Run workflow** and enter the tag.
 
 ## Contributing
 
